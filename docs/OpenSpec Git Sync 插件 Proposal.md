@@ -1,4 +1,3 @@
-```markdown
 # OpenSpec Git Sync VS Code 插件 - 完整提案
 
 ## 一、项目背景
@@ -19,12 +18,12 @@
 
 ### 场景 A：一键 Sync（主路径，推荐所有非开发者使用）
 
-
+```
 用户点击「Sync」按钮
         ↓
-git add openspec/                 # 仅暂存 spec 变更，不污染工作区
+git add openspec/                  # 仅暂存 spec 变更，不污染工作区
         ↓
-git commit -m "<消息或模板>"       # 有变更才提交
+git commit -m "<消息或模板>"        # 有变更才提交
         ↓
 git pull --rebase origin <branch>  # 先同步远程，保持线性历史
         ↓
@@ -37,7 +36,7 @@ git pull --rebase origin <branch>  # 先同步远程，保持线性历史
 弹窗引导      git push origin <branch>
 +逃生口            ↓
             「✓ 已发布到远程」
-
+```
 
 ### 场景 B：单步操作（高级折叠区，面向开发者）
 
@@ -49,41 +48,41 @@ git pull --rebase origin <branch>  # 先同步远程，保持线性历史
 
 ### 3.1 Side Panel 布局
 
-
+```
 ┌────────────────────────────────────────┐
-│ 🔧 OpenSpec Git Sync                   
-├────────────────────────────────────────
-│  📊 状态                               
-│  ─────────────────                     
-│  分支：main                             
-│  远程：up to date ✓                    
-│  变更文件：3                           
-│                                        
-│  ┌──────────────────────────────────┐  
-│  │ 🚀 Sync (一键发布我的修改)        │  ← 主按钮
-│  └──────────────────────────────────┘  
-│                                        
-│  变更文件列表：                        
-│  ✏️ proposal.md (修改)                 
-│  ✏️ design.md (修改)                   
-│  ✏️ tasks.md (新增)                    
-│                                        
-│  ▸ 高级操作 (展开)   ← 默认折叠
-│    ┌────────────────────────────────┐   
-│    │ 🔽 Pull   ✅ Commit   📤 Push 
-│    └────────────────────────────────┘  
-│                                        
-│  ┌──────────────────────────────────┐  
-│  │ 🔄 Refresh (刷新状态)              
-│  └──────────────────────────────────┘  
-└────────────────────────────────────────
-
+│ 🔧 OpenSpec Git Sync                   │
+├────────────────────────────────────────┤
+│  📊 状态                               │
+│  ─────────────────                     │
+│  分支：main                            │
+│  远程：up to date ✓                    │
+│  变更文件：3                           │
+│                                        │
+│  ┌──────────────────────────────────┐ │
+│  │ 🚀 Sync (一键发布我的修改)        │ │  ← 主按钮
+│  └──────────────────────────────────┘ │
+│                                        │
+│  变更文件列表：                        │
+│  ✏️ proposal.md (修改)                 │
+│  ✏️ design.md (修改)                   │
+│  ✏️ tasks.md (新增)                    │
+│                                        │
+│  ▸ 高级操作 (展开)   ← 默认折叠         │
+│    ┌────────────────────────────────┐ │
+│    │ 🔽 Pull   ✅ Commit   📤 Push   │ │
+│    └────────────────────────────────┘ │
+│                                        │
+│  ┌──────────────────────────────────┐ │
+│  │ 🔄 Refresh (刷新状态)             │ │
+│  └──────────────────────────────────┘ │
+└────────────────────────────────────────┘
+```
 
 ### 3.2 按钮详细行为
 
 #### 主按钮：Sync（一键发布）
 
-
+```
 执行流程：
 1. git add openspec/
 2. 若有变更 → 弹出消息输入框（带模板默认值）→ git commit
@@ -98,28 +97,40 @@ git pull --rebase origin <branch>  # 先同步远程，保持线性历史
 - 凭证/认证失败 → 「Git 认证失败，请检查 HTTPS Token 或 SSH Key 配置」
 - 网络错误 → 「无法连接远程仓库，请检查网络」
 - rebase 失败 → 自动 git rebase --abort 回滚到操作前状态，提示用户
-
+```
 
 #### 单步按钮（高级区）
 
 **Pull**
+
+```
 1. git pull origin <branch>
 2. 刷新文件列表
 异常：有未提交变更 → 提示先 Commit；冲突 → 提示手动解决
+```
 
 **Commit**
+
+```
 1. git add openspec/
 2. 弹出输入框（提交消息模板见下）
 3. git commit -m "<用户输入>"
+```
 
 **Push**
+
+```
 1. git push origin <branch>
 2. 失败需先 pull → 提示「远程有更新，请先 Sync 或 Pull」
+```
 
 **Refresh**
+
+```
 1. git status --porcelain 解析变更列表
 2. git rev-list --count --left-right @{u}...HEAD 计算 ahead/behind
 3. 更新状态面板
+```
 
 ### 3.3 提交消息模板（约定式提交中文版，可配置）
 
@@ -185,14 +196,7 @@ git pull --rebase origin <branch>  # 先同步远程，保持线性历史
       "opensync-sidebar": [
         { "type": "tree", "id": "opensync.panel", "name": "Sync Panel" }
       ]
-    }
-  },
-  "scripts": {
-    "vscode:prepublish": "npm run compile",
-    "compile": "webpack",
-    "watch": "webpack --watch"
-  },
-  "contributes": {
+    },
     "configuration": {
       "title": "OpenSpec Git Sync",
       "properties": {
@@ -205,6 +209,11 @@ git pull --rebase origin <branch>  # 先同步远程，保持线性历史
       }
     }
   },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "webpack",
+    "watch": "webpack --watch"
+  },
   "devDependencies": {
     "@types/vscode": "^1.80.0",
     "typescript": "^5.0.0",
@@ -213,7 +222,7 @@ git pull --rebase origin <branch>  # 先同步远程，保持线性历史
 }
 ```
 
-> 注：MVP 使用 TreeView（非 Webview），代码与配置的 view id 保持一致，避免类型不匹配。
+> 注：MVP 使用 TreeView（非 Webview），代码与配置的 view id 保持一致，避免类型不匹配。`contributes` 必须是单一对象，`configuration` 与 `commands`/`views` 同级，切勿写成两个 `contributes`（JSON 重复键会相互覆盖，导致命令与视图失效）。
 
 ### 4.2 目录结构
 
@@ -282,18 +291,19 @@ export function activate(context: vscode.ExtensionContext) {
 
 ```typescript
 import { t } from './i18n';
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import { promisify } from 'util';
 import * as vscode from 'vscode';
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 export class GitHandler {
+  // 用 execFile 数组传参，避免 shell 转义问题（中文 / 引号 / 特殊字符）
   private async execGit(args: string[]): Promise<string> {
     const cwd = this.resolveRepoRoot();
-    if (!cwd) throw new Error('未找到包含 openspec/ 的工作区');
+    if (!cwd) throw new Error(t('noRepo'));
     try {
-      const { stdout } = await execAsync(`git ${args.join(' ')}`, { cwd });
+      const { stdout } = await execFileAsync('git', args, { cwd });
       return stdout.trim();
     } catch (error: any) {
       throw new Error(this.translateError(error.stderr || error.message));
@@ -314,7 +324,7 @@ export class GitHandler {
     return folders[0].uri.fsPath;
   }
 
-  // 把常见 Git 报错翻译成可执行中文提示
+  // 把常见 Git 报错翻译成可执行提示
   private translateError(stderr: string): string {
     if (/authentication|could not read|permission denied/i.test(stderr))
       return t('authFail');
@@ -336,7 +346,7 @@ export class GitHandler {
 
   async commit(message: string): Promise<void> {
     await this.execGit(['add', 'openspec/']);
-    await this.execGit(['commit', '-m', `"${message}"`]);
+    await this.execGit(['commit', '-m', message]);
   }
 
   async push(): Promise<void> {
@@ -358,7 +368,7 @@ export class GitHandler {
         placeHolder: t('syncPlaceholder')
       });
       if (!msg) return;
-      await this.execGit(['commit', '-m', `"${msg}"`]);
+      await this.execGit(['commit', '-m', msg]);
     }
 
     try {
@@ -413,6 +423,7 @@ export class GitHandler {
   }
 }
 ```
+
 #### i18n.ts（中英文文案）
 
 ```typescript
@@ -455,6 +466,12 @@ export function t(key: keyof typeof STRINGS['zh-CN']): string {
 }
 ```
 
+### 4.4 实现注意事项
+
+- **命令调用用 `execFile` 而非 `exec`**：以数组传参，避免 shell 对中文、引号、`$`、反引号等特殊字符的转义问题（已在上方 `gitHandler.ts` 采用）。
+- **`openspec/` 目录假设**：当前 `git add openspec/` 假设 spec 位于仓库根目录。monorepo 中若位于子目录需调整路径，MVP 阶段约定「openspec/ 位于仓库根」。
+- **ahead/behind 时效性**：读取 `@{u}` 前未执行 `git fetch`，状态可能过时。建议 Refresh 时先静默 `git fetch` 再计算（可放 Phase 2）。
+
 ## 五、用户体验流程
 
 ### 5.1 产品经理评审场景
@@ -478,12 +495,13 @@ export function t(key: keyof typeof STRINGS['zh-CN']): string {
 2. 对比 proposal.md 与实际实现
 3. 在 tasks.md 添加审查意见 → 点击「Sync」返回意见
 
-## 六、进阶功能（Phase 2）
+## 六、进阶功能（Phase 2，待定）
 
 - **智能提示**：检测到 `changes/` 新文件时提示初始化 spec 文档
 - **一键初始化**：新任务一键生成 proposal.md / design.md / tasks.md / specs/，让产品、测试也能发起 spec 而非仅评审
 - **状态颜色标识**：绿 ✓ up to date / 黄 ⚠️ n ahead / 红 ✗ 冲突 / 灰 无变更
 - **批量操作**：Pull + Rebase 保持线性历史
+- **Refresh 前静默 fetch**：让 ahead/behind 实时准确
 
 ## 七、部署与使用
 
@@ -519,6 +537,3 @@ vsce package
 - ✅ 凭证失败友好提示
 - ✅ 单步 Pull/Commit/Push（高级折叠区）
 - ✅ 中英文切换（设置项 `opensync.language`，默认 zh-CN）
-
-> 一键初始化、智能提示、批量操作 → Phase 2
-```
