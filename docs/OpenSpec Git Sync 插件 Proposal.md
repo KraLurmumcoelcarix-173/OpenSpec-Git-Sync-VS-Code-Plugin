@@ -19,7 +19,7 @@
 
 ### 场景 A：一键 Sync（主路径，推荐所有非开发者使用）
 
-```
+
 用户点击「Sync」按钮
         ↓
 git add openspec/                 # 仅暂存 spec 变更，不污染工作区
@@ -37,7 +37,7 @@ git pull --rebase origin <branch>  # 先同步远程，保持线性历史
 弹窗引导      git push origin <branch>
 +逃生口            ↓
             「✓ 已发布到远程」
-```
+
 
 ### 场景 B：单步操作（高级折叠区，面向开发者）
 
@@ -49,7 +49,7 @@ git pull --rebase origin <branch>  # 先同步远程，保持线性历史
 
 ### 3.1 Side Panel 布局
 
-```
+
 ┌────────────────────────────────────────┐
 │ 🔧 OpenSpec Git Sync                   
 ├────────────────────────────────────────
@@ -77,13 +77,13 @@ git pull --rebase origin <branch>  # 先同步远程，保持线性历史
 │  │ 🔄 Refresh (刷新状态)              
 │  └──────────────────────────────────┘  
 └────────────────────────────────────────
-``` 
+
 
 ### 3.2 按钮详细行为
 
 #### 主按钮：Sync（一键发布）
 
-```
+
 执行流程：
 1. git add openspec/
 2. 若有变更 → 弹出消息输入框（带模板默认值）→ git commit
@@ -98,36 +98,28 @@ git pull --rebase origin <branch>  # 先同步远程，保持线性历史
 - 凭证/认证失败 → 「Git 认证失败，请检查 HTTPS Token 或 SSH Key 配置」
 - 网络错误 → 「无法连接远程仓库，请检查网络」
 - rebase 失败 → 自动 git rebase --abort 回滚到操作前状态，提示用户
-```
+
 
 #### 单步按钮（高级区）
 
 **Pull**
-```
 1. git pull origin <branch>
 2. 刷新文件列表
 异常：有未提交变更 → 提示先 Commit；冲突 → 提示手动解决
-```
 
 **Commit**
-```
 1. git add openspec/
 2. 弹出输入框（提交消息模板见下）
 3. git commit -m "<用户输入>"
-```
 
 **Push**
-```
 1. git push origin <branch>
 2. 失败需先 pull → 提示「远程有更新，请先 Sync 或 Pull」
-```
 
 **Refresh**
-```
 1. git status --porcelain 解析变更列表
 2. git rev-list --count --left-right @{u}...HEAD 计算 ahead/behind
 3. 更新状态面板
-```
 
 ### 3.3 提交消息模板（可配置）
 
