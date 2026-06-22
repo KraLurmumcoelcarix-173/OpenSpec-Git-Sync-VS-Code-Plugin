@@ -121,21 +121,40 @@ git pull --rebase origin <branch>  # 先同步远程，保持线性历史
 2. git rev-list --count --left-right @{u}...HEAD 计算 ahead/behind
 3. 更新状态面板
 
-### 3.3 提交消息模板（可配置）
+### 3.3 提交消息模板（约定式提交中文版，可配置）
 
-- `更新 proposal.md：[任务名称]`
-- `更新 design.md：[技术方案]`
-- `更新 tasks.md：[进度同步]`
-- `添加评审意见：[评审人/范围]`
+格式：`<类型>(<范围>): <简要描述>`，范围统一用 `spec` 或具体文档名。
+
+- `docs(spec): 更新 proposal.md [任务名称]`
+- `docs(spec): 更新 design.md [技术方案]`
+- `docs(spec): 更新 tasks.md [进度同步]`
+- `docs(spec): 添加评审意见 [评审人/范围]`
+
+> 类型对照：新增功能 `feat`、修 Bug `fix`、文档/规范变更 `docs`、重构 `refactor`。
+> spec 文档评审属于文档变更，默认用 `docs`。关联任务编号写入正文，如 `关联需求：TAPD-12345`。
 
 ### 3.4 状态面板字段
 
 | 字段 | 说明 | 示例 |
 |------|------|------|
-| 分支 | 当前 Git 分支 | main / dev_06_需求评审 |
+| 分支 | 当前 Git 分支 | main / feat/TAPD-12345-spec-review |
 | 远程状态 | 与远程的同步状态 | up to date ✓ / 3 ahead / has conflicts ⚠️ |
 | 变更文件 | 有变更的 spec 文件数量 | 3 |
 | 变更列表 | 具体变更文件列表 | proposal.md (modified) |
+
+### 3.5 分支命名规范（团队约定）
+
+全部小写，用 `-` 连接单词，前缀标明类型，关联任务编号（如有）：
+
+| 类型 | 前缀 | 示例 |
+|------|------|------|
+| 新功能 | `feat/` | `feat/TAPD-12345-order-refund` |
+| 修复 | `fix/` | `fix/JIRA-5678-null-pointer` |
+| 发布 | `release/` | `release/v2.1.0` |
+| 紧急修复 | `hotfix/` | `hotfix/fix-login-crash` |
+| 个人开发 | `dev/<姓名>/` | `dev/zhangsan/feat-login` |
+
+> 插件不强制校验分支名，但「一键初始化」（Phase 2）创建新任务分支时应按此规范自动生成。
 
 ## 四、技术实现方案
 
@@ -173,6 +192,19 @@ git pull --rebase origin <branch>  # 先同步远程，保持线性历史
     "compile": "webpack",
     "watch": "webpack --watch"
   },
+  "contributes": {
+    "configuration": {
+      "title": "OpenSpec Git Sync",
+      "properties": {
+        "opensync.language": {
+          "type": "string",
+          "enum": ["zh-CN", "en"],
+          "default": "zh-CN",
+          "description": "界面与提示语言 / UI and prompt language"
+        }
+      }
+    }
+  },
   "devDependencies": {
     "@types/vscode": "^1.80.0",
     "typescript": "^5.0.0",
@@ -190,7 +222,8 @@ openspec-git-sync/
 ├── src/
 │   ├── extension.ts          # 主入口
 │   ├── syncProvider.ts       # TreeView 数据提供者
-│   └── gitHandler.ts         # Git 操作封装
+│   ├── gitHandler.ts         # Git 操作封装
+│   └── i18n.ts               # 中英文文案与切换
 ├── media/
 │   └── icon.svg
 ├── package.json
@@ -225,8 +258,9 @@ export function activate(context: vscode.ExtensionContext) {
 
     vscode.commands.registerCommand('opensync.commit', async () => {
       const message = await vscode.window.showInputBox({
-        prompt: '请输入提交消息',
-        placeHolder: '例如：更新 proposal.md 变更范围'
+        prompt: '请输入提交消息（约定式提交格式）',
+        value: 'docs(spec): ',
+        placeHolder: '<类型>(spec): <描述>，如 docs(spec): 更新 proposal.md 变更范围'
       });
       if (message) {
         await git.commit(message);
@@ -247,6 +281,7 @@ export function activate(context: vscode.ExtensionContext) {
 #### gitHandler.ts
 
 ```typescript
+import { t } from './i18n';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import * as vscode from 'vscode';
@@ -282,12 +317,12 @@ export class GitHandler {
   // 把常见 Git 报错翻译成可执行中文提示
   private translateError(stderr: string): string {
     if (/authentication|could not read|permission denied/i.test(stderr))
-      return 'Git 认证失败，请检查 HTTPS Token 或 SSH Key 配置';
+      return t('authFail');
     if (/could not resolve host|network|timed out/i.test(stderr))
-      return '无法连接远程仓库，请检查网络连接';
+      return t('networkFail');
     if (/conflict/i.test(stderr))
-      return '检测到冲突，需要人工处理';
-    return `Git 命令失败：${stderr}`;
+      return t('conflict');
+    return `Git error: ${stderr}`;
   }
 
   private async currentBranch(): Promise<string> {
@@ -318,8 +353,9 @@ export class GitHandler {
     const staged = await this.execGit(['status', '--porcelain']);
     if (staged) {
       const msg = await vscode.window.showInputBox({
-        prompt: '请输入提交消息',
-        value: '更新 OpenSpec 规范变更'
+        prompt: t('syncPrompt'),
+        value: t('syncDefault'),
+        placeHolder: t('syncPlaceholder')
       });
       if (!msg) return;
       await this.execGit(['commit', '-m', `"${msg}"`]);
@@ -331,11 +367,11 @@ export class GitHandler {
       // rebase 失败 → 回滚并引导
       await this.execGit(['rebase', '--abort']).catch(() => {});
       const choice = await vscode.window.showWarningMessage(
-        '检测到冲突，需要人工处理',
-        '手动解决',
-        '放弃我的修改重新拉取'
+        t('conflict'),
+        t('conflictResolve'),
+        t('conflictDiscard')
       );
-      if (choice === '放弃我的修改重新拉取') {
+      if (choice === t('conflictDiscard')) {
         await this.execGit(['reset', '--hard', `origin/${branch}`]);
         await this.execGit(['pull', 'origin', branch]);
       }
@@ -343,7 +379,7 @@ export class GitHandler {
     }
 
     await this.execGit(['push', 'origin', branch]);
-    vscode.window.showInformationMessage('✓ 已发布到远程');
+    vscode.window.showInformationMessage(t('published'));
   }
 
   async getStatus(): Promise<{
@@ -375,6 +411,47 @@ export class GitHandler {
 
     return { branch, ahead, behind, files };
   }
+}
+```
+#### i18n.ts（中英文文案）
+
+```typescript
+import * as vscode from 'vscode';
+
+type Lang = 'zh-CN' | 'en';
+
+const STRINGS = {
+  'zh-CN': {
+    syncPrompt: '请输入提交消息（约定式提交格式）',
+    syncDefault: 'docs(spec): 更新 OpenSpec 规范变更',
+    syncPlaceholder: '<类型>(spec): <描述>，如 docs(spec): 添加评审意见',
+    published: '✓ 已发布到远程',
+    authFail: 'Git 认证失败，请检查 HTTPS Token 或 SSH Key 配置',
+    networkFail: '无法连接远程仓库，请检查网络连接',
+    conflict: '检测到冲突，需要人工处理',
+    conflictResolve: '手动解决',
+    conflictDiscard: '放弃我的修改重新拉取',
+    noRepo: '未找到包含 openspec/ 的工作区'
+  },
+  'en': {
+    syncPrompt: 'Enter commit message (Conventional Commits)',
+    syncDefault: 'docs(spec): update OpenSpec spec changes',
+    syncPlaceholder: '<type>(spec): <description>, e.g. docs(spec): add review notes',
+    published: '✓ Pushed to remote',
+    authFail: 'Git authentication failed. Check your HTTPS token or SSH key.',
+    networkFail: 'Cannot reach remote repository. Check your network.',
+    conflict: 'Conflict detected. Manual resolution required.',
+    conflictResolve: 'Resolve manually',
+    conflictDiscard: 'Discard my changes and re-pull',
+    noRepo: 'No workspace containing openspec/ found'
+  }
+} as const;
+
+export function t(key: keyof typeof STRINGS['zh-CN']): string {
+  const lang = vscode.workspace
+    .getConfiguration('opensync')
+    .get<Lang>('language', 'zh-CN');
+  return STRINGS[lang][key];
 }
 ```
 
@@ -441,6 +518,7 @@ vsce package
 - ✅ 状态面板（分支 / 远程状态 / 变更数）
 - ✅ 凭证失败友好提示
 - ✅ 单步 Pull/Commit/Push（高级折叠区）
+- ✅ 中英文切换（设置项 `opensync.language`，默认 zh-CN）
 
 > 一键初始化、智能提示、批量操作 → Phase 2
 ```
