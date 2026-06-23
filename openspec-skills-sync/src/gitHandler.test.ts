@@ -84,3 +84,72 @@ describe('GitHandler.resetHard', () => {
     );
   });
 });
+
+describe('GitHandler.hasRemote', () => {
+  it('remote 列表含 origin 时返回 true', async () => {
+    const fakeRunner = jest.fn().mockResolvedValue('origin\n');
+
+    const git = new GitHandler('/fake/repo', fakeRunner);
+    const result = await git.hasRemote();
+
+    expect(result).toBe(true);
+    expect(fakeRunner).toHaveBeenCalledWith(
+      'git',
+      ['remote'],
+      '/fake/repo'
+    );
+  });
+
+  it('remote 列表为空时返回 false', async () => {
+    const fakeRunner = jest.fn().mockResolvedValue('');
+
+    const git = new GitHandler('/fake/repo', fakeRunner);
+    const result = await git.hasRemote();
+
+    expect(result).toBe(false);
+  });
+
+  it('只有其它 remote、没有 origin 时返回 false', async () => {
+    const fakeRunner = jest.fn().mockResolvedValue('upstream\nbackup\n');
+
+    const git = new GitHandler('/fake/repo', fakeRunner);
+    const result = await git.hasRemote();
+
+    expect(result).toBe(false);
+  });
+});
+
+describe('GitHandler.getAheadBehind', () => {
+  it('解析 behind 和 ahead 的数量', async () => {
+    // git 输出格式：<behind>\t<ahead>
+    const fakeRunner = jest.fn().mockResolvedValue('2\t3\n');
+
+    const git = new GitHandler('/fake/repo', fakeRunner);
+    const result = await git.getAheadBehind('main');
+
+    expect(result).toEqual({ behind: 2, ahead: 3 });
+    expect(fakeRunner).toHaveBeenCalledWith(
+      'git',
+      ['rev-list', '--count', '--left-right', 'origin/main...HEAD'],
+      '/fake/repo'
+    );
+  });
+
+  it('完全同步时返回 0/0', async () => {
+    const fakeRunner = jest.fn().mockResolvedValue('0\t0\n');
+
+    const git = new GitHandler('/fake/repo', fakeRunner);
+    const result = await git.getAheadBehind('main');
+
+    expect(result).toEqual({ behind: 0, ahead: 0 });
+  });
+
+  it('命令失败（如无 upstream）时返回 0/0 而非抛错', async () => {
+    const fakeRunner = jest.fn().mockRejectedValue(new Error('no upstream'));
+
+    const git = new GitHandler('/fake/repo', fakeRunner);
+    const result = await git.getAheadBehind('main');
+
+    expect(result).toEqual({ behind: 0, ahead: 0 });
+  });
+});

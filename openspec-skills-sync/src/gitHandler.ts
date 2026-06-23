@@ -33,4 +33,29 @@ export class GitHandler {
     await this.execGit(['reset', '--hard', `origin/${branch}`]);
   }
 
+  async hasRemote(): Promise<boolean> {
+    const out = await this.execGit(['remote']);
+    // 按行拆分，精确匹配是否存在名为 origin 的远程
+    return out
+      .split('\n')
+      .map(line => line.trim())
+      .includes('origin');
+  }
+
+  async getAheadBehind(branch: string): Promise<{ behind: number; ahead: number }> {
+    try {
+      const out = await this.execGit([
+        'rev-list', '--count', '--left-right', `origin/${branch}...HEAD`
+      ]);
+      const [behindStr, aheadStr] = out.split(/\s+/);
+      return {
+        behind: Number(behindStr) || 0,
+        ahead: Number(aheadStr) || 0,
+      };
+    } catch {
+      // 无 upstream / 远程分支不存在等情况，降级为 0/0
+      return { behind: 0, ahead: 0 };
+    }
+  }
+
 }
