@@ -54,3 +54,33 @@ describe('GitHandler.hasLocalChanges', () => {
     expect(result).toBe(false);
   });
 });
+
+describe('GitHandler.fetch', () => {
+  it('用 origin 和分支名调用 git fetch', async () => {
+    const fakeRunner = jest.fn().mockResolvedValue('');
+
+    const git = new GitHandler('/fake/repo', fakeRunner);
+    await git.fetch('main');
+
+    expect(fakeRunner).toHaveBeenCalledWith(
+      'git',
+      ['fetch', 'origin', 'main'],
+      '/fake/repo'
+    );
+  });
+});
+
+describe('GitHandler.resetHard', () => {
+  it('强制对齐到 origin/<branch>', async () => {
+    const fakeRunner = jest.fn().mockResolvedValue('');
+
+    const git = new GitHandler('/fake/repo', fakeRunner);
+    await git.resetHard('main');
+
+    expect(fakeRunner).toHaveBeenCalledWith(
+      'git',
+      ['reset', '--hard', 'origin/main'],
+      '/fake/repo'
+    );
+  });
+});

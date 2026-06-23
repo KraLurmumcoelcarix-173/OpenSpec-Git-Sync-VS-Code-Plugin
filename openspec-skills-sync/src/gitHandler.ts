@@ -25,4 +25,12 @@ export class GitHandler {
     return out.length > 0;
   }
 
+  async fetch(branch: string): Promise<void> {
+    await this.execGit(['fetch', 'origin', branch]);
+  }
+
+  async resetHard(branch: string): Promise<void> {
+    await this.execGit(['reset', '--hard', `origin/${branch}`]);
+  }
+
 }
