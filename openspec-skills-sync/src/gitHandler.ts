@@ -19,4 +19,10 @@ export class GitHandler {
   async currentBranch(): Promise<string> {
     return this.execGit(['rev-parse', '--abbrev-ref', 'HEAD']);
   }
+
+  async hasLocalChanges(relPath: string): Promise<boolean> {
+    const out = await this.execGit(['status', '--porcelain', '--', relPath]);
+    return out.length > 0;
+  }
+
 }

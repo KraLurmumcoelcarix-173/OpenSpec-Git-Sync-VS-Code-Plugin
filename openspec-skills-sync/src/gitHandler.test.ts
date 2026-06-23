@@ -20,3 +20,37 @@ describe('GitHandler.currentBranch', () => {
     );
   });
 });
+
+describe('GitHandler.hasLocalChanges', () => {
+  it('有改动时返回 true，并用 porcelain 查询指定路径', async () => {
+    const fakeRunner = jest.fn().mockResolvedValue(' M .lingma/skills/a.md\n');
+
+    const git = new GitHandler('/fake/repo', fakeRunner);
+    const result = await git.hasLocalChanges('.lingma/skills');
+
+    expect(result).toBe(true);
+    expect(fakeRunner).toHaveBeenCalledWith(
+      'git',
+      ['status', '--porcelain', '--', '.lingma/skills'],
+      '/fake/repo'
+    );
+  });
+
+  it('无改动（输出为空）时返回 false', async () => {
+    const fakeRunner = jest.fn().mockResolvedValue('');
+
+    const git = new GitHandler('/fake/repo', fakeRunner);
+    const result = await git.hasLocalChanges('.lingma/skills');
+
+    expect(result).toBe(false);
+  });
+
+  it('只有空白（空格/换行）也算无改动', async () => {
+    const fakeRunner = jest.fn().mockResolvedValue('  \n  ');
+
+    const git = new GitHandler('/fake/repo', fakeRunner);
+    const result = await git.hasLocalChanges('.lingma/skills');
+
+    expect(result).toBe(false);
+  });
+});
