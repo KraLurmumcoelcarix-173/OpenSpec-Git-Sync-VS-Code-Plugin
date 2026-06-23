@@ -1,48 +1,71 @@
-# OpenSpec Git Sync VS Code 插件 - 完整提案
+# OpenSpec Skills Sync VS Code 插件 - 提案（重置版）
 
 ## 一、项目背景
 
 ### 1.1 痛点
 
-在 OpenSpec 研发工作流中，非开发人员（产品经理、测试、技术负责人等）需要参与规范契约评审环节，但由于不熟悉 Git 命令，无法方便地完成：
-
-- 拉取最新的 OpenSpec 规范文档进行评审
-- 评审后提交修改的规范变更
-- 推送至远程仓库供他人查看
+在 OpenSpec 研发工作流中，团队默认使用 Lingma（通义灵码）配置 OpenSpec，规范 skills 文档存放于 `.lingma/skills/` 目录。非开发人员（产品经理、测试、技术负责人等）需要获取最新的 skills 文档进行查阅与评审，但由于不熟悉 Git 命令，无法方便地拉取远程更新。手动 `git pull`、配置 Git 凭证、处理冲突，对没接触过 Git 的人门槛过高。
 
 ### 1.2 目标
 
-通过 VS Code 插件提供图形化按钮，将复杂的 Git 操作简化为一键点击，让所有角色都能无缝参与 SDD 流程。**核心设计原则：为完全不懂 Git 的非开发者优化默认路径，主界面只暴露「一键 Sync」，单步操作折叠为高级选项。**
+通过 VS Code 插件提供图形化按钮，让非开发者**一键拉取** `.lingma/skills/` 下的最新文档，无需任何 Git 命令知识。
+
+**核心设计原则：**
+
+- MVP 只做「拉取」，不做提交/推送，避免非开发者触碰复杂的 Git 写操作。
+- 拉取前自动备份本地文件，冲突时优先「备份 + 强制拉取」，不让非开发者陷入手动解决冲突的泥潭。
+- 帮非开发者一键完成 Git 身份与凭证配置，省去命令行步骤。
+
+### 1.3 同步范围
+
+仅同步 `.lingma/skills/` 目录（路径可配置）。其余目录暂不在 MVP 范围内。
+
+> 路径来源：团队工作流默认在 Lingma 中配置 OpenSpec，skills 文档位于 `.lingma/skills/`。开发时以可配置常量 `opensync.syncPath` 体现，默认 `.lingma/skills`。
 
 ## 二、核心工作流程
 
-### 场景 A：一键 Sync（主路径，推荐所有非开发者使用）
+### 场景 A：一键 Pull（主路径，面向非开发者）
 
 ```
-用户点击「Sync」按钮
+用户点击「Pull」按钮
         ↓
-git add openspec/                  # 仅暂存 spec 变更，不污染工作区
+检测本地 .lingma/skills/ 是否有未提交改动
         ↓
-git commit -m "<消息或模板>"        # 有变更才提交
-        ↓
-git pull --rebase origin <branch>  # 先同步远程，保持线性历史
-        ↓
-   ┌─────────────┐
-   │ 是否有冲突？ │
-   └─────┬───────┘
-      是 │ 否
-   ┌─────┘ └─────┐
+   ┌──────────────────┐
+   │ 有本地改动？      │
+   └────┬─────────────┘
+     是 │ 否
+   ┌────┘ └──────┐
    ↓             ↓
-弹窗引导      git push origin <branch>
-+逃生口            ↓
-            「✓ 已发布到远程」
+备份本地目录   直接 git pull
+(yyyy-MM-dd-id) origin <branch>
+   ↓             ↓
+强制拉取远程    更新 skills/
+git fetch +     ↓
+git reset --hard 刷新状态面板
+origin/<branch>
+   ↓
+提示：本地原文件已备份至
+.lingma/.backup/<yyyy-MM-dd-id>/
+        ↓
+   ┌──────────────────┐
+   │ 拉取是否冲突/失败？│
+   └────┬─────────────┘
+        ↓ 是
+   仅提示用户：「检测到冲突，
+   已保留备份。如需手动处理，
+   请联系开发或查看备份目录」
+   （不强制用户处理）
 ```
 
-### 场景 B：单步操作（高级折叠区，面向开发者）
+### 备份策略
 
-- **Pull**：`git pull origin <branch>`，更新 `openspec/changes/*`，刷新状态面板
-- **Commit**：`git add openspec/` → 弹出消息输入框 → `git commit -m "..."`
-- **Push**：`git push origin <branch>`，显示进度与结果
+- 触发条件：本地 `.lingma/skills/` 存在未提交改动时，在执行强制拉取前先备份。
+- 备份路径：`.lingma/.backup/<yyyy-MM-dd-id>/`
+- 命名格式：`yyyy-MM-dd-id`，其中 `id` 为当天递增序号或短时间戳，避免同一天多次备份覆盖（如 `2026-06-23-01`、`2026-06-23-02`）。
+- 备份目录加入 `.gitignore`，不污染仓库。
+
+> 设计意图：非开发者没有 Git 冲突处理经验，强制让他们 rebase / merge 风险高、体验差。改为「先备份、再强制对齐远程」，用户的本地改动不会丢（在备份里），同时永远能拿到干净的最新版。冲突只提示、不阻塞。
 
 ## 三、插件功能设计
 
@@ -50,146 +73,116 @@ git pull --rebase origin <branch>  # 先同步远程，保持线性历史
 
 ```
 ┌────────────────────────────────────────┐
-│ 🔧 OpenSpec Git Sync                   │
+│ 🔧 OpenSpec Skills Sync                 │
 ├────────────────────────────────────────┤
-│  📊 状态                               │
-│  ─────────────────                     │
-│  分支：main                            │
-│  远程：up to date ✓                    │
-│  变更文件：3                            │
-│                                        │
+│  📊 状态                                │
+│  ─────────────────                      │
+│  分支：main                             │
+│  远程：up to date ✓                     │
+│  同步路径：.lingma/skills/              │
+│  本地改动：无                           │
+│                                         │
 │  ┌──────────────────────────────────┐  │
-│  │ 🚀 Sync (一键发布我的修改)        │  │  ← 主按钮
+│  │ 🔽 Pull (拉取最新 skills)         │  │
 │  └──────────────────────────────────┘  │
-│                                        │
-│  变更文件列表：                         │
-│  ✏️ proposal.md (修改)                 │
-│  ✏️ design.md (修改)                   │
-│  ✏️ tasks.md (新增)                    │
-│                                        │
-│  ▸ 高级操作 (展开)   ← 默认折叠          │
-│    ┌────────────────────────────────┐  │
-│    │ 🔽 Pull   ✅ Commit   📤 Push │ │
-│    └────────────────────────────────┘  │
-│                                        │
+│                                         │
 │  ┌──────────────────────────────────┐  │
-│  │ 🔄 Refresh (刷新状态)            │  │
+│  │ 🔄 Refresh (刷新状态)             │  │
+│  └──────────────────────────────────┘  │
+│                                         │
+│  ⚙️ 首次使用：                          │
+│  ┌──────────────────────────────────┐  │
+│  │ 🔑 配置 Git 身份与凭证            │  │
 │  └──────────────────────────────────┘  │
 └────────────────────────────────────────┘
 ```
 
 ### 3.2 按钮详细行为
 
-#### 主按钮：Sync（一键发布）
+#### 按钮 1：Pull（拉取最新 skills）
 
 ```
 执行流程：
-1. git add openspec/
-2. 若有变更 → 弹出消息输入框（带模板默认值）→ git commit
-3. git pull --rebase origin <branch>
-4. 检测冲突：
-   - 无冲突 → git push origin <branch> → 提示「✓ 已发布到远程」
-   - 有冲突 → 弹窗：「检测到冲突，需要人工处理」
-              提供选项：[手动解决] / [放弃我的修改重新拉取]
+1. 解析仓库根与当前分支
+2. 检测 .lingma/skills/ 是否有未提交改动
+   - 有 → 备份到 .lingma/.backup/<yyyy-MM-dd-id>/
+3. git fetch origin <branch>
+4. git reset --hard origin/<branch>   # 强制对齐远程，本地改动已备份
 5. 刷新状态面板
+6. 若有备份 → 提示「本地原文件已备份至 .backup/<...>」
 
 异常处理：
-- 凭证/认证失败 → 「Git 认证失败，请检查 HTTPS Token 或 SSH Key 配置」
-- 网络错误 → 「无法连接远程仓库，请检查网络」
-- rebase 失败 → 自动 git rebase --abort 回滚到操作前状态，提示用户
+- 凭证/认证失败 → 提示「Git 认证失败，请点击『配置 Git 身份与凭证』」
+- 网络错误 → 提示「无法连接远程仓库，请检查网络」
+- 其它失败 → 仅提示，保留备份，不强制用户处理
 ```
 
-#### 单步按钮（高级区）
-
-**Pull**
+#### 按钮 2：Refresh（刷新状态）
 
 ```
-1. git pull origin <branch>
-2. 刷新文件列表
-异常：有未提交变更 → 提示先 Commit；冲突 → 提示手动解决
+执行流程：
+1. git fetch origin <branch>（静默）
+2. git status --porcelain -- .lingma/skills/ 解析本地改动
+3. git rev-list --count --left-right @{u}...HEAD 计算 ahead/behind
+4. 更新状态面板
 ```
 
-**Commit**
+#### 按钮 3：配置 Git 身份与凭证（首次使用）
 
 ```
-1. git add openspec/
-2. 弹出输入框（提交消息模板见下）
-3. git commit -m "<用户输入>"
+执行流程：
+1. 弹出输入框，依次填写：
+   - 用户名 (user.name)
+   - 邮箱 (user.email)
+2. 执行（局部配置，仅作用于当前仓库，非全局）：
+   git config user.name "<输入>"
+   git config user.email "<输入>"
+3. 配置凭证存储（明文，局部）：
+   git config credential.helper store
+   # 凭证将明文写入磁盘文件，首次拉取输入后永久保存，免重复输入
+4. 提示「配置完成，首次拉取输入凭证后将自动保存」
 ```
 
-**Push**
+> 凭证存储说明（按团队要求采用明文存储）：
+> - `user.name` / `user.email` 仅是提交身份信息。
+> - 凭证（密码 / token）采用 `credential.helper store`，**明文写入磁盘文件**（默认 `~/.git-credentials`），首次输入后永久保存、不过期。
+> - 配置为**局部**（仅当前仓库），不污染用户全局 Git 设置。
+>
+> ⚠️ 安全风险提示：`store` 方案下凭证以明文形式存储于本地磁盘，任何能访问该用户文件系统的人都可读取。建议：
+> - 优先使用**有限权限的访问 Token**（如只读、仅限本仓库），而非账号主密码；
+> - 在共享 / 公共设备上避免使用此方案；
+> - 如后续安全要求提高，可切换为 `cache --timeout=N`（内存缓存、不落盘）方案。
 
-```
-1. git push origin <branch>
-2. 失败需先 pull → 提示「远程有更新，请先 Sync 或 Pull」
-```
-
-**Refresh**
-
-```
-1. git status --porcelain 解析变更列表
-2. git rev-list --count --left-right @{u}...HEAD 计算 ahead/behind
-3. 更新状态面板
-```
-
-### 3.3 提交消息模板（约定式提交中文版，可配置）
-
-格式：`<类型>(<范围>): <简要描述>`，范围统一用 `spec` 或具体文档名。
-
-- `docs(spec): 更新 proposal.md [任务名称]`
-- `docs(spec): 更新 design.md [技术方案]`
-- `docs(spec): 更新 tasks.md [进度同步]`
-- `docs(spec): 添加评审意见 [评审人/范围]`
-
-> 类型对照：新增功能 `feat`、修 Bug `fix`、文档/规范变更 `docs`、重构 `refactor`。
-> spec 文档评审属于文档变更，默认用 `docs`。关联任务编号写入正文，如 `关联需求：TAPD-12345`。
-
-### 3.4 状态面板字段
+### 3.3 状态面板字段
 
 | 字段 | 说明 | 示例 |
 |------|------|------|
-| 分支 | 当前 Git 分支 | main / feat/TAPD-12345-spec-review |
-| 远程状态 | 与远程的同步状态 | up to date ✓ / 3 ahead / has conflicts ⚠️ |
-| 变更文件 | 有变更的 spec 文件数量 | 3 |
-| 变更列表 | 具体变更文件列表 | proposal.md (modified) |
-
-### 3.5 分支命名规范（团队约定）
-
-全部小写，用 `-` 连接单词，前缀标明类型，关联任务编号（如有）：
-
-| 类型 | 前缀 | 示例 |
-|------|------|------|
-| 新功能 | `feat/` | `feat/TAPD-12345-order-refund` |
-| 修复 | `fix/` | `fix/JIRA-5678-null-pointer` |
-| 发布 | `release/` | `release/v2.1.0` |
-| 紧急修复 | `hotfix/` | `hotfix/fix-login-crash` |
-| 个人开发 | `dev/<姓名>/` | `dev/zhangsan/feat-login` |
-
-> 插件不强制校验分支名，但「一键初始化」（Phase 2）创建新任务分支时应按此规范自动生成。
+| 分支 | 当前 Git 分支 | main |
+| 远程状态 | 与远程的同步状态 | up to date ✓ / behind 2 / 拉取失败 ⚠️ |
+| 同步路径 | 当前同步的目录 | .lingma/skills/ |
+| 本地改动 | skills 目录是否有未提交改动 | 无 / 3 个文件 |
 
 ## 四、技术实现方案
 
-### 4.1 技术栈（package.json 节选）
+### 4.1 技术栈与 package.json（节选）
 
 ```json
 {
-  "name": "openspec-git-sync",
-  "displayName": "OpenSpec Git Sync",
-  "version": "1.0.0",
+  "name": "openspec-skills-sync",
+  "displayName": "OpenSpec Skills Sync",
+  "version": "0.1.0",
   "engines": { "vscode": "^1.80.0" },
   "activationEvents": ["onView:opensync.panel"],
   "main": "./dist/extension.js",
   "contributes": {
     "commands": [
-      { "command": "opensync.sync",    "title": "Sync (一键发布)" },
-      { "command": "opensync.pull",    "title": "Pull Latest Spec" },
-      { "command": "opensync.commit",  "title": "Commit Changes" },
-      { "command": "opensync.push",    "title": "Push to Remote" },
-      { "command": "opensync.refresh", "title": "Refresh Status" }
+      { "command": "opensync.pull",     "title": "Pull Latest Skills" },
+      { "command": "opensync.refresh",  "title": "Refresh Status" },
+      { "command": "opensync.setupGit", "title": "Configure Git Identity & Credential" }
     ],
     "viewsContainers": {
       "activitybar": [
-        { "id": "opensync-sidebar", "title": "OpenSpec Sync", "icon": "media/icon.svg" }
+        { "id": "opensync-sidebar", "title": "OpenSpec Skills Sync", "icon": "media/icon.svg" }
       ]
     },
     "views": {
@@ -198,13 +191,18 @@ git pull --rebase origin <branch>  # 先同步远程，保持线性历史
       ]
     },
     "configuration": {
-      "title": "OpenSpec Git Sync",
+      "title": "OpenSpec Skills Sync",
       "properties": {
         "opensync.language": {
           "type": "string",
           "enum": ["zh-CN", "en"],
           "default": "zh-CN",
           "description": "界面与提示语言 / UI and prompt language"
+        },
+        "opensync.syncPath": {
+          "type": "string",
+          "default": ".lingma/skills",
+          "description": "需要同步的目录（相对仓库根）"
         }
       }
     }
@@ -222,286 +220,61 @@ git pull --rebase origin <branch>  # 先同步远程，保持线性历史
 }
 ```
 
-> 注：MVP 使用 TreeView（非 Webview），代码与配置的 view id 保持一致，避免类型不匹配。`contributes` 必须是单一对象，`configuration` 与 `commands`/`views` 同级，切勿写成两个 `contributes`（JSON 重复键会相互覆盖，导致命令与视图失效）。
+> 注：MVP 使用 TreeView；`contributes` 为单一对象，`configuration` 与 `commands`/`views` 同级（切勿写成两个 `contributes`，JSON 重复键会相互覆盖）。
 
 ### 4.2 目录结构
 
 ```
-openspec-git-sync/
+openspec-skills-sync/
 ├── src/
-│   ├── extension.ts          # 主入口
-│   ├── syncProvider.ts       # TreeView 数据提供者
-│   ├── gitHandler.ts         # Git 操作封装
-│   └── i18n.ts               # 中英文文案与切换
+│   ├── extension.ts          # 主入口，注册命令
+│   ├── syncProvider.ts       # TreeView 数据提供者（状态面板）
+│   ├── gitHandler.ts         # Git 操作封装（pull / status / 备份 / 配置）
+│   ├── backup.ts             # 备份逻辑（yyyy-MM-dd-id）
+│   └── i18n.ts               # 中英文文案
 ├── media/
 │   └── icon.svg
 ├── package.json
 └── README.md
 ```
 
-### 4.3 核心代码示例
+### 4.3 实现注意事项
 
-#### extension.ts
-
-```typescript
-import * as vscode from 'vscode';
-import { SyncProvider } from './syncProvider';
-import { GitHandler } from './gitHandler';
-
-export function activate(context: vscode.ExtensionContext) {
-  const git = new GitHandler();
-  const provider = new SyncProvider(context.extensionUri);
-
-  context.subscriptions.push(
-    vscode.window.registerTreeDataProvider('opensync.panel', provider),
-
-    vscode.commands.registerCommand('opensync.sync', async () => {
-      await git.sync();
-      provider.refresh();
-    }),
-
-    vscode.commands.registerCommand('opensync.pull', async () => {
-      await git.pull();
-      provider.refresh();
-    }),
-
-    vscode.commands.registerCommand('opensync.commit', async () => {
-      const message = await vscode.window.showInputBox({
-        prompt: '请输入提交消息（约定式提交格式）',
-        value: 'docs(spec): ',
-        placeHolder: '<类型>(spec): <描述>，如 docs(spec): 更新 proposal.md 变更范围'
-      });
-      if (message) {
-        await git.commit(message);
-        provider.refresh();
-      }
-    }),
-
-    vscode.commands.registerCommand('opensync.push', async () => {
-      await git.push();
-      provider.refresh();
-    }),
-
-    vscode.commands.registerCommand('opensync.refresh', () => provider.refresh())
-  );
-}
-```
-
-#### gitHandler.ts
-
-```typescript
-import { t } from './i18n';
-import { execFile } from 'child_process';
-import { promisify } from 'util';
-import * as vscode from 'vscode';
-
-const execFileAsync = promisify(execFile);
-
-export class GitHandler {
-  // 用 execFile 数组传参，避免 shell 转义问题（中文 / 引号 / 特殊字符）
-  private async execGit(args: string[]): Promise<string> {
-    const cwd = this.resolveRepoRoot();
-    if (!cwd) throw new Error(t('noRepo'));
-    try {
-      const { stdout } = await execFileAsync('git', args, { cwd });
-      return stdout.trim();
-    } catch (error: any) {
-      throw new Error(this.translateError(error.stderr || error.message));
-    }
-  }
-
-  // 多根工作区：优先选含 openspec/ 的根
-  private resolveRepoRoot(): string | undefined {
-    const folders = vscode.workspace.workspaceFolders;
-    if (!folders) return undefined;
-    const fs = require('fs');
-    const path = require('path');
-    for (const f of folders) {
-      if (fs.existsSync(path.join(f.uri.fsPath, 'openspec'))) {
-        return f.uri.fsPath;
-      }
-    }
-    return folders[0].uri.fsPath;
-  }
-
-  // 把常见 Git 报错翻译成可执行提示
-  private translateError(stderr: string): string {
-    if (/authentication|could not read|permission denied/i.test(stderr))
-      return t('authFail');
-    if (/could not resolve host|network|timed out/i.test(stderr))
-      return t('networkFail');
-    if (/conflict/i.test(stderr))
-      return t('conflict');
-    return `Git error: ${stderr}`;
-  }
-
-  private async currentBranch(): Promise<string> {
-    return this.execGit(['rev-parse', '--abbrev-ref', 'HEAD']);
-  }
-
-  async pull(): Promise<void> {
-    const branch = await this.currentBranch();
-    await this.execGit(['pull', 'origin', branch]);
-  }
-
-  async commit(message: string): Promise<void> {
-    await this.execGit(['add', 'openspec/']);
-    await this.execGit(['commit', '-m', message]);
-  }
-
-  async push(): Promise<void> {
-    const branch = await this.currentBranch();
-    await this.execGit(['push', 'origin', branch]);
-  }
-
-  // 一键 Sync：add → commit → pull --rebase → push，含冲突回滚
-  async sync(): Promise<void> {
-    const branch = await this.currentBranch();
-    await this.execGit(['add', 'openspec/']);
-
-    // 有变更才提交
-    const staged = await this.execGit(['status', '--porcelain']);
-    if (staged) {
-      const msg = await vscode.window.showInputBox({
-        prompt: t('syncPrompt'),
-        value: t('syncDefault'),
-        placeHolder: t('syncPlaceholder')
-      });
-      if (!msg) return;
-      await this.execGit(['commit', '-m', msg]);
-    }
-
-    try {
-      await this.execGit(['pull', '--rebase', 'origin', branch]);
-    } catch (e) {
-      // rebase 失败 → 回滚并引导
-      await this.execGit(['rebase', '--abort']).catch(() => {});
-      const choice = await vscode.window.showWarningMessage(
-        t('conflict'),
-        t('conflictResolve'),
-        t('conflictDiscard')
-      );
-      if (choice === t('conflictDiscard')) {
-        await this.execGit(['reset', '--hard', `origin/${branch}`]);
-        await this.execGit(['pull', 'origin', branch]);
-      }
-      return;
-    }
-
-    await this.execGit(['push', 'origin', branch]);
-    vscode.window.showInformationMessage(t('published'));
-  }
-
-  async getStatus(): Promise<{
-    branch: string;
-    ahead: number;
-    behind: number;
-    files: Array<{ path: string; status: string }>;
-  }> {
-    const branch = await this.currentBranch();
-    const status = await this.execGit(['status', '--porcelain']);
-
-    const files: Array<{ path: string; status: string }> = [];
-    status.split('\n').forEach(line => {
-      if (line.trim()) {
-        files.push({ path: line.substring(3), status: line.substring(0, 2) });
-      }
-    });
-
-    // 正确计算 ahead/behind
-    let ahead = 0, behind = 0;
-    try {
-      const counts = await this.execGit(['rev-list', '--count', '--left-right', '@{u}...HEAD']);
-      const [b, a] = counts.split(/\s+/).map(Number);
-      behind = b || 0;
-      ahead = a || 0;
-    } catch {
-      // 无 upstream 时忽略
-    }
-
-    return { branch, ahead, behind, files };
-  }
-}
-```
-
-#### i18n.ts（中英文文案）
-
-```typescript
-import * as vscode from 'vscode';
-
-type Lang = 'zh-CN' | 'en';
-
-const STRINGS = {
-  'zh-CN': {
-    syncPrompt: '请输入提交消息（约定式提交格式）',
-    syncDefault: 'docs(spec): 更新 OpenSpec 规范变更',
-    syncPlaceholder: '<类型>(spec): <描述>，如 docs(spec): 添加评审意见',
-    published: '✓ 已发布到远程',
-    authFail: 'Git 认证失败，请检查 HTTPS Token 或 SSH Key 配置',
-    networkFail: '无法连接远程仓库，请检查网络连接',
-    conflict: '检测到冲突，需要人工处理',
-    conflictResolve: '手动解决',
-    conflictDiscard: '放弃我的修改重新拉取',
-    noRepo: '未找到包含 openspec/ 的工作区'
-  },
-  'en': {
-    syncPrompt: 'Enter commit message (Conventional Commits)',
-    syncDefault: 'docs(spec): update OpenSpec spec changes',
-    syncPlaceholder: '<type>(spec): <description>, e.g. docs(spec): add review notes',
-    published: '✓ Pushed to remote',
-    authFail: 'Git authentication failed. Check your HTTPS token or SSH key.',
-    networkFail: 'Cannot reach remote repository. Check your network.',
-    conflict: 'Conflict detected. Manual resolution required.',
-    conflictResolve: 'Resolve manually',
-    conflictDiscard: 'Discard my changes and re-pull',
-    noRepo: 'No workspace containing openspec/ found'
-  }
-} as const;
-
-export function t(key: keyof typeof STRINGS['zh-CN']): string {
-  const lang = vscode.workspace
-    .getConfiguration('opensync')
-    .get<Lang>('language', 'zh-CN');
-  return STRINGS[lang][key];
-}
-```
-
-### 4.4 实现注意事项
-
-- **命令调用用 `execFile` 而非 `exec`**：以数组传参，避免 shell 对中文、引号、`$`、反引号等特殊字符的转义问题（已在上方 `gitHandler.ts` 采用）。
-- **`openspec/` 目录假设**：当前 `git add openspec/` 假设 spec 位于仓库根目录。monorepo 中若位于子目录需调整路径，MVP 阶段约定「openspec/ 位于仓库根」。
-- **ahead/behind 时效性**：读取 `@{u}` 前未执行 `git fetch`，状态可能过时。建议 Refresh 时先静默 `git fetch` 再计算（可放 Phase 2）。
+- **命令调用用 `execFile` 而非 `exec`**：以数组传参，避免 shell 对中文、引号、特殊字符的转义问题。
+- **同步路径可配置**：`opensync.syncPath` 默认 `.lingma/skills`，开发时以常量读取，便于后续调整。
+- **强制拉取前必须先备份**：`git reset --hard` 会丢弃本地改动，备份是唯一的安全网，顺序不能颠倒。
+- **备份目录 `.gitignore`**：`.lingma/.backup/` 不纳入版本控制。
+- **凭证方案**：按团队要求默认 `credential.helper store`（明文落盘、局部）。已在 3.2 标注安全风险与缓解建议。
+- **ahead/behind 时效性**：Refresh 与 Pull 前先 `git fetch`，保证状态准确。
 
 ## 五、用户体验流程
 
-### 5.1 产品经理评审场景
+### 5.1 首次使用
 
-1. 打开 VS Code，切换到「OpenSpec Sync」侧边栏
-2. 点击「Sync」→ 自动拉取最新 spec（若本地无修改则只 pull）
-3. 在编辑器中查看并直接添加评审意见
-4. 点击「Sync」→ 输入「添加评审意见：XXX」→ 自动提交并推送
+1. 安装插件，打开「OpenSpec Skills Sync」侧边栏
+2. 点击「配置 Git 身份与凭证」，填写用户名、邮箱
+3. 首次拉取时输入一次凭证，之后自动保存
+
+### 5.2 日常拉取（非开发者评审场景）
+
+1. 打开侧边栏，点击「Pull」
+2. 若本地动过文件 → 插件自动备份后强制拉取，提示备份位置
+3. 若本地干净 → 直接拉取最新 skills
+4. 在编辑器中查阅最新 `.lingma/skills/` 文档
 5. 全程无需任何 Git 命令
 
-### 5.2 开发人员更新规范场景
+## 六、待办与未来规划（Phase 2+）
 
-1. AI 完成编码后自动更新 `changes/任务名称/specs/` 文件
-2. 侧边栏显示「变更文件：5」
-3. 点击「Sync」→ 输入「完成 XX 功能，更新 spec」→ 一键发布
-4. 等待 Code Review 通过后执行 `/opsx:archive` 归档
+以下为本 MVP **不做**、留待后续评估的功能：
 
-### 5.3 技术负责人审查场景
-
-1. 收到 PR 通知，点击「Sync」拉取最新代码和 spec
-2. 对比 proposal.md 与实际实现
-3. 在 tasks.md 添加审查意见 → 点击「Sync」返回意见
-
-## 六、进阶功能（Phase 2，待定）
-
-- **智能提示**：检测到 `changes/` 新文件时提示初始化 spec 文档
-- **一键初始化**：新任务一键生成 proposal.md / design.md / tasks.md / specs/，让产品、测试也能发起 spec 而非仅评审
-- **状态颜色标识**：绿 ✓ up to date / 黄 ⚠️ n ahead / 红 ✗ 冲突 / 灰 无变更
-- **批量操作**：Pull + Rebase 保持线性历史
-- **Refresh 前静默 fetch**：让 ahead/behind 实时准确
+- **提交与推送（Commit / Push）**：让非开发者把评审意见写回远程。需配套更完善的冲突兜底。
+- **完整 OpenSpec 同步**：MVP 仅同步 `.lingma/skills/`，后续扩展到 `changes/`、`specs/` 等其它目录。
+- **分支命名规范与校验**：团队统一 `feat/`、`fix/` 等前缀约定，及一键创建规范分支。
+- **提交消息模板**：约定式提交（Conventional Commits）中文模板。
+- **一键初始化**：新任务一键生成 proposal.md / design.md / tasks.md。
+- **状态颜色标识**：绿（最新）/ 黄（落后）/ 红（失败）。
+- **凭证方案升级**：如安全要求提高，从 `store`（明文）切换为 `cache`（内存缓存）或系统凭证管理器（如 Windows Credential Manager / macOS Keychain）。
+- **备份清理**：定期清理过期备份目录，避免堆积。
 
 ## 七、部署与使用
 
@@ -523,17 +296,12 @@ vsce package
 
 ## 八、总结
 
-核心价值：
+**MVP 范围（极简）：**
 
-- **降低门槛**：非开发人员通过「一键 Sync」零成本参与 SDD 流程
-- **流程保障**：spec 文档及时同步到远程
-- **可视化状态**：一眼看清同步状态
-- **减少错误**：消除手动 Git 命令的失误，冲突有兜底逃生口
+- ✅ Pull 按钮：一键拉取 `.lingma/skills/`，拉取前自动备份本地改动
+- ✅ 备份机制：`yyyy-MM-dd-id` 格式，强制拉取不丢本地文件
+- ✅ Refresh 按钮：刷新分支 / 远程 / 本地改动状态
+- ✅ 配置 Git 身份与凭证按钮：一键设好 user.name / user.email（局部）+ credential.helper store（明文）
+- ✅ 中英文切换
 
-**MVP 范围**：
-
-- ✅ 一键 Sync 按钮（主路径，含冲突回滚）
-- ✅ 状态面板（分支 / 远程状态 / 变更数）
-- ✅ 凭证失败友好提示
-- ✅ 单步 Pull/Commit/Push（高级折叠区）
-- ✅ 中英文切换（设置项 `opensync.language`，默认 zh-CN）
+**核心价值：** 把非开发者参与 OpenSpec 的门槛降到「点一个按钮」，冲突不再需要他们处理，凭证配置不再需要敲命令。
