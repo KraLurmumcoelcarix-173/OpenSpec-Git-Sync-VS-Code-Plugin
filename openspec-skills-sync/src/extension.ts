@@ -77,7 +77,42 @@ import * as vscode from 'vscode';
       if (summary) {
         vscode.window.showInformationMessage(`状态已刷新：${summary}`);
       }
-    })   
+    }) 
+      ,
+    vscode.commands.registerCommand('opensync.setupGit', async () => {
+      const root = resolveRepoRoot();
+      if (!root) {
+        vscode.window.showErrorMessage('未找到工作区，请先打开包含 .lingma 的文件夹');
+        return;
+      }
+      const git = new GitHandler(root, realGitRunner);
+
+      const name = await vscode.window.showInputBox({
+        prompt: '请输入 Git 用户名',
+        placeHolder: '如：张三',
+        ignoreFocusOut: true,
+      });
+      if (name === undefined) return; // 用户按了 Esc
+
+      const email = await vscode.window.showInputBox({
+        prompt: '请输入 Git 邮箱',
+        placeHolder: '如：zhangsan@company.com',
+        ignoreFocusOut: true,
+      });
+      if (email === undefined) return;
+
+      try {
+        if (name) await git.setConfig('user.name', name);
+        if (email) await git.setConfig('user.email', email);
+        await git.enableCredentialStore();
+        vscode.window.showInformationMessage(
+          '✓ Git 身份与凭证已配置。首次拉取输入凭证后将自动保存（明文存储于本机）。'
+        );
+      } catch (e: any) {
+        vscode.window.showErrorMessage(`配置失败：${e?.message ?? e}`);
+      }
+    })
+
      );    
      doRefresh(provider);
    }    

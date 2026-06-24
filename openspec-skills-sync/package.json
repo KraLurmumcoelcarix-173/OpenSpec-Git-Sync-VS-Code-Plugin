@@ -20,7 +20,8 @@
     },
     "commands": [
       { "command": "opensync.pull", "title": "OpenSpec: Pull Latest Skills" },
-      { "command": "opensync.refresh", "title": "OpenSpec: Refresh Status" }
+      { "command": "opensync.refresh", "title": "OpenSpec: Refresh Status" },
+      { "command": "opensync.setupGit", "title": "OpenSpec: Configure Git Identity & Credential" }
     ]
   },
   "name": "openspec-skills-sync",

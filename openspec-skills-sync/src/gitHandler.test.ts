@@ -178,3 +178,43 @@ it('解析 porcelain 输出，返回改动文件的相对路径数组', async ()
     expect(files).toEqual([]);
   });
 });
+
+describe('GitHandler.setConfig', () => {
+  it('设置局部 user.name', async () => {
+    const fakeRunner = jest.fn().mockResolvedValue('');
+    const git = new GitHandler('/fake/repo', fakeRunner);
+    await git.setConfig('user.name', '张三');
+
+    expect(fakeRunner).toHaveBeenCalledWith(
+      'git',
+      ['config', 'user.name', '张三'],
+      '/fake/repo'
+    );
+  });
+
+  it('设置局部 user.email', async () => {
+    const fakeRunner = jest.fn().mockResolvedValue('');
+    const git = new GitHandler('/fake/repo', fakeRunner);
+    await git.setConfig('user.email', 'z@s.com');
+
+    expect(fakeRunner).toHaveBeenCalledWith(
+      'git',
+      ['config', 'user.email', 'z@s.com'],
+      '/fake/repo'
+    );
+  });
+});
+
+describe('GitHandler.enableCredentialStore', () => {
+  it('配置 credential.helper 为 store（明文存储）', async () => {
+    const fakeRunner = jest.fn().mockResolvedValue('');
+    const git = new GitHandler('/fake/repo', fakeRunner);
+    await git.enableCredentialStore();
+
+    expect(fakeRunner).toHaveBeenCalledWith(
+      'git',
+      ['config', 'credential.helper', 'store'],
+      '/fake/repo'
+    );
+  });
+});

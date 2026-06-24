@@ -36,6 +36,7 @@ export class SyncProvider implements vscode.TreeDataProvider<Item> {
       new Item(`本地改动：${this.status.changes}`),
       new Item('🔽 Pull (拉取最新 skills)', 'opensync.pull', 'cloud-download'),
       new Item('🔄 Refresh (刷新状态)', 'opensync.refresh', 'refresh'),
+      new Item('🔑 配置 Git 身份与凭证', 'opensync.setupGit', 'key'),
     ];
   }
 }

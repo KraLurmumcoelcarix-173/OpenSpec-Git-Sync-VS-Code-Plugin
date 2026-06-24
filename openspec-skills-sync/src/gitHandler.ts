@@ -68,4 +68,13 @@ async listChangedFiles(relPath: string): Promise<string[]> {
     }
   }
 
+  async setConfig(key: string, value: string): Promise<void> {
+    await this.execGit(['config', key, value]);
+  }
+
+  async enableCredentialStore(): Promise<void> {
+    // 明文存储凭证到 ~/.git-credentials（用户级，按团队要求）
+    await this.execGit(['config', 'credential.helper', 'store']);
+  }
+
 }
