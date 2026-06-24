@@ -1,14 +1,21 @@
 import * as vscode from 'vscode';
 import { strings } from './i18n';
 
+// 一个树节点：支持图标、右侧描述文字、悬停提示、点击命令
 class Item extends vscode.TreeItem {
-  constructor(label: string, commandId?: string, icon?: string) {
-    super(label, vscode.TreeItemCollapsibleState.None);
-    if (commandId) {
-      this.command = { command: commandId, title: label };
-    }
-    if (icon) {
-      this.iconPath = new vscode.ThemeIcon(icon);
+  constructor(opts: {
+    label: string;
+    icon?: string;
+    description?: string;
+    tooltip?: string;
+    commandId?: string;
+  }) {
+    super(opts.label, vscode.TreeItemCollapsibleState.None);
+    if (opts.icon) this.iconPath = new vscode.ThemeIcon(opts.icon);
+    if (opts.description) this.description = opts.description;
+    if (opts.tooltip) this.tooltip = opts.tooltip;
+    if (opts.commandId) {
+      this.command = { command: opts.commandId, title: opts.label };
     }
   }
 }
@@ -17,7 +24,6 @@ export class SyncProvider implements vscode.TreeDataProvider<Item> {
   private _onDidChange = new vscode.EventEmitter<void>();
   readonly onDidChangeTreeData = this._onDidChange.event;
 
-  // 状态用原始值存储，渲染时再套语言（这样切语言刷新就能变）
   private status = { branch: '—', remote: '', changes: '—' };
 
   refresh(status?: Partial<typeof this.status>) {
@@ -32,13 +38,53 @@ export class SyncProvider implements vscode.TreeDataProvider<Item> {
   getChildren(): Item[] {
     const s = strings();
     const remoteText = this.status.remote || s.statusNotRefreshed;
+
+    // 根据远程状态选不同颜色的图标，给用户直观的"绿灯/黄灯"感
+    const remoteIcon =
+      remoteText === s.statusUpToDate ? 'pass-filled'
+      : remoteText === s.statusNoRemote ? 'error'
+      : 'arrow-circle-down';
+
     return [
-      new Item(`${s.panelBranch}：${this.status.branch}`),
-      new Item(`${s.panelRemote}：${remoteText}`),
-      new Item(`${s.panelChanges}：${this.status.changes}`),
-      new Item(s.btnPull, 'opensync.pull', 'cloud-download'),
-      new Item(s.btnRefresh, 'opensync.refresh', 'refresh'),
-      new Item(s.btnSetup, 'opensync.setupGit', 'key'),
+      // —— 状态区 ——
+      new Item({
+        label: this.status.branch,
+        icon: 'git-branch',
+        description: s.panelBranch,
+        tooltip: `${s.panelBranch}: ${this.status.branch}`,
+      }),
+      new Item({
+        label: remoteText,
+        icon: remoteIcon,
+        description: s.panelRemote,
+        tooltip: `${s.panelRemote}: ${remoteText}`,
+      }),
+      new Item({
+        label: this.status.changes,
+        icon: this.status.changes === s.changesNone ? 'check' : 'edit',
+        description: s.panelChanges,
+        tooltip: `${s.panelChanges}: ${this.status.changes}`,
+      }),
+
+      // —— 操作区 ——
+      new Item({
+        label: s.btnPull,
+        icon: 'cloud-download',
+        commandId: 'opensync.pull',
+        tooltip: s.btnPullTip,
+      }),
+      new Item({
+        label: s.btnRefresh,
+        icon: 'sync',
+        commandId: 'opensync.refresh',
+        tooltip: s.btnRefreshTip,
+      }),
+      new Item({
+        label: s.btnSetup,
+        icon: 'key',
+        commandId: 'opensync.setupGit',
+        tooltip: s.btnSetupTip,
+      }),
     ];
   }
 }
