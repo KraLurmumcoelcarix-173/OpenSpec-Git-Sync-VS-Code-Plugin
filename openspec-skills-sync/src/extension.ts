@@ -1,50 +1,49 @@
-import * as vscode from 'vscode';    
-   import { SyncProvider } from './syncProvider';    
-   import { GitHandler } from './gitHandler';    
-   import { realGitRunner } from './gitRunner';    
-   import { realFileOps } from './fileOps';    
-   import { SyncService } from './syncService';    
-   import { makeBackupFn } from './backupFn';    
-   import { resolveRepoRoot } from './workspace';    
+import * as vscode from 'vscode';
+import { SyncProvider } from './syncProvider';
+import { GitHandler } from './gitHandler';
+import { realGitRunner } from './gitRunner';
+import { realFileOps } from './fileOps';
+import { SyncService } from './syncService';
+import { makeBackupFn } from './backupFn';
+import { resolveRepoRoot } from './workspace';
+import { strings } from './i18n';
 
-   const SYNC_PATH = '.lingma/skills';    
+const SYNC_PATH = '.lingma/skills';
 
-   export function activate(context: vscode.ExtensionContext) {    
-     const provider = new SyncProvider();    
-     vscode.window.registerTreeDataProvider('opensync.panel', provider);    
+export function activate(context: vscode.ExtensionContext) {
+  const provider = new SyncProvider();
+  vscode.window.registerTreeDataProvider('opensync.panel', provider);
 
-     // 构造 syncService（接电：真 git runner + 真 fs）    
-     function buildService(): SyncService | undefined {    
-       const root = resolveRepoRoot();    
-       if (!root) {    
-         vscode.window.showErrorMessage('未找到工作区，请先打开包含 .lingma 的文件夹');    
-         return undefined;    
-       }    
-       const git = new GitHandler(root, realGitRunner);    
-       const backupFn = makeBackupFn(root, realFileOps);    
-       return new SyncService(git, backupFn, SYNC_PATH);    
-     }    
+  function buildService(): SyncService | undefined {
+    const s = strings();
+    const root = resolveRepoRoot();
+    if (!root) {
+      vscode.window.showErrorMessage(s.noWorkspace);
+      return undefined;
+    }
+    const git = new GitHandler(root, realGitRunner);
+    const backupFn = makeBackupFn(root, realFileOps);
+    return new SyncService(git, backupFn, SYNC_PATH);
+  }
 
-     context.subscriptions.push(    
-       vscode.commands.registerCommand('opensync.pull', async () => {
+  context.subscriptions.push(
+    vscode.commands.registerCommand('opensync.pull', async () => {
+      const s = strings();
       // 拦截：有未保存的脏文档时，不允许 Pull
-      // （reset --hard 看不到内存里未落盘的改动，会造成状态混乱/触发 compare）
       const dirtyDocs = vscode.workspace.textDocuments.filter(
         doc => doc.isDirty && !doc.isUntitled
       );
       if (dirtyDocs.length > 0) {
-        const names = dirtyDocs
-          .map(d => d.fileName.split(/[\\/]/).pop())
-          .join('、');
+        const names = dirtyDocs.map(d => d.fileName.split(/[\\/]/).pop()).join('、');
         const choice = await vscode.window.showWarningMessage(
-          `有未保存的文件：${names}。请先保存后再拉取。`,
-          '全部保存并继续',
-          '取消'
+          s.dirtyWarn(names),
+          s.dirtySaveAndContinue,
+          s.cancel
         );
-        if (choice === '全部保存并继续') {
+        if (choice === s.dirtySaveAndContinue) {
           await vscode.workspace.saveAll(false);
         } else {
-          return; // 用户取消，终止 Pull
+          return;
         }
       }
 
@@ -54,64 +53,62 @@ import * as vscode from 'vscode';
       switch (result.status) {
         case 'ok':
           vscode.window.showInformationMessage(
-            result.backupName
-              ? `✓ 已拉取最新 skills（本地原文件已备份至 .backup/${result.backupName}）`
-              : '✓ 已拉取最新 skills'
+            result.backupName ? s.pullOkWithBackup(result.backupName) : s.pullOkNoBackup
           );
           break;
         case 'no-remote':
-          vscode.window.showWarningMessage('未检测到远程仓库 origin，请联系开发配置');
+          vscode.window.showWarningMessage(s.pullNoRemote);
           break;
         case 'fetch-failed':
-          vscode.window.showErrorMessage(`拉取失败（网络或认证）：${result.error}`);
+          vscode.window.showErrorMessage(s.pullFetchFailed(result.error));
           break;
         case 'reset-failed':
-          vscode.window.showErrorMessage(`对齐远程失败：${result.error}`);
+          vscode.window.showErrorMessage(s.pullResetFailed(result.error));
           break;
       }
       await doRefresh(provider);
-    }),    
+    }),
 
-       vscode.commands.registerCommand('opensync.refresh', async () => {
+    vscode.commands.registerCommand('opensync.refresh', async () => {
+      const s = strings();
       const summary = await doRefresh(provider);
       if (summary) {
-        vscode.window.showInformationMessage(`状态已刷新：${summary}`);
+        vscode.window.showInformationMessage(s.refreshDone(summary));
       }
-    }) 
-       ,
+    }),
+
     vscode.commands.registerCommand('opensync.setupGit', async () => {
+      const s = strings();
       const root = resolveRepoRoot();
       if (!root) {
-        vscode.window.showErrorMessage('未找到工作区，请先打开包含 .lingma 的文件夹');
+        vscode.window.showErrorMessage(s.noWorkspace);
         return;
       }
       const git = new GitHandler(root, realGitRunner);
 
-      // 先检测现状
       const curName = await git.getConfig('user.name');
       const curEmail = await git.getConfig('user.email');
 
       if (curName && curEmail) {
-        // 已配置：显示现状，问是否重新配置
         const choice = await vscode.window.showInformationMessage(
-          `✓ 已配置 Git 身份：${curName} <${curEmail}>`,
-          '重新配置',
-          '关闭'
+          s.setupAlreadyDone(curName, curEmail),
+          s.setupReconfigure,
+          s.close
         );
-        if (choice !== '重新配置') return;
+        if (choice !== s.setupReconfigure) return;
       }
 
       const name = await vscode.window.showInputBox({
-        prompt: '请输入 Git 用户名',
-        placeHolder: '如：张三',
+        prompt: s.setupAskName,
+        placeHolder: s.setupNamePlaceholder,
         value: curName ?? '',
         ignoreFocusOut: true,
       });
       if (name === undefined) return;
 
       const email = await vscode.window.showInputBox({
-        prompt: '请输入 Git 邮箱',
-        placeHolder: '如：zhangsan@company.com',
+        prompt: s.setupAskEmail,
+        placeHolder: s.setupEmailPlaceholder,
         value: curEmail ?? '',
         ignoreFocusOut: true,
       });
@@ -121,20 +118,20 @@ import * as vscode from 'vscode';
         if (name) await git.setConfig('user.name', name);
         if (email) await git.setConfig('user.email', email);
         await git.enableCredentialStore();
-        vscode.window.showInformationMessage(
-          '✓ Git 身份与凭证已配置。首次拉取输入凭证后将自动保存（明文存储于本机）。'
-        );
+        vscode.window.showInformationMessage(s.setupDone);
       } catch (e: any) {
-        vscode.window.showErrorMessage(`配置失败：${e?.message ?? e}`);
+        vscode.window.showErrorMessage(s.setupFailed(e?.message ?? String(e)));
       }
     })
+  );
 
-     );    
-     doRefresh(provider);
-   }    
+  // 启动时自动刷新一次
+  doRefresh(provider);
+}
 
-// 刷新状态面板，返回一句状态摘要（供命令决定是否弹提示）
+// 刷新状态面板，返回一句状态摘要
 async function doRefresh(provider: SyncProvider): Promise<string | undefined> {
+  const s = strings();
   const root = resolveRepoRoot();
   if (!root) return undefined;
   const git = new GitHandler(root, realGitRunner);
@@ -142,30 +139,30 @@ async function doRefresh(provider: SyncProvider): Promise<string | undefined> {
     const branch = await git.currentBranch();
     const hasRemote = await git.hasRemote();
     const changed = await git.listChangedFiles(SYNC_PATH);
-    let remoteStatus = '无远程';
-    let summary = '';
+    let remoteStatus: string = s.statusNoRemote;
+    let summary: string = '';
     if (hasRemote) {
       const { behind, ahead } = await git.getAheadBehind(branch);
       if (behind === 0 && ahead === 0) {
-        remoteStatus = 'up to date ✓';
-        summary = '已是最新 ✓';
+        remoteStatus = s.statusUpToDate;
+        summary = s.summaryUpToDate;
       } else {
-        remoteStatus = `落后 ${behind} / 领先 ${ahead}`;
-        summary = behind > 0 ? `远程有 ${behind} 个更新，可点击 Pull 拉取` : `本地领先 ${ahead}`;
+        remoteStatus = s.remoteAheadBehind(behind, ahead);
+        summary = behind > 0 ? s.summaryBehind(behind) : s.summaryAhead(ahead);
       }
     } else {
-      summary = '未检测到远程仓库 origin';
+      summary = s.summaryNoRemote;
     }
     provider.refresh({
       branch,
       remote: remoteStatus,
-      changes: changed.length === 0 ? '无' : `${changed.length} 个文件`,
+      changes: changed.length === 0 ? s.changesNone : s.changesFiles(changed.length),
     });
     return summary;
   } catch (e: any) {
-    vscode.window.showErrorMessage(`刷新失败：${e?.message ?? e}`);
+    vscode.window.showErrorMessage(s.refreshFailed(e?.message ?? String(e)));
     return undefined;
   }
-}    
+}
 
-   export function deactivate() {}
+export function deactivate() {}

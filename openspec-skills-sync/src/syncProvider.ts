@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
+import { strings } from './i18n';
 
-// 树里的一个节点：可以是状态文字，也可以是可点击的按钮
 class Item extends vscode.TreeItem {
   constructor(label: string, commandId?: string, icon?: string) {
     super(label, vscode.TreeItemCollapsibleState.None);
@@ -17,8 +17,8 @@ export class SyncProvider implements vscode.TreeDataProvider<Item> {
   private _onDidChange = new vscode.EventEmitter<void>();
   readonly onDidChangeTreeData = this._onDidChange.event;
 
-  // 当前状态文字，刷新时更新
-  private status = { branch: '—', remote: '未刷新', changes: '—' };
+  // 状态用原始值存储，渲染时再套语言（这样切语言刷新就能变）
+  private status = { branch: '—', remote: '', changes: '—' };
 
   refresh(status?: Partial<typeof this.status>) {
     if (status) this.status = { ...this.status, ...status };
@@ -30,13 +30,15 @@ export class SyncProvider implements vscode.TreeDataProvider<Item> {
   }
 
   getChildren(): Item[] {
+    const s = strings();
+    const remoteText = this.status.remote || s.statusNotRefreshed;
     return [
-      new Item(`分支：${this.status.branch}`),
-      new Item(`远程：${this.status.remote}`),
-      new Item(`本地改动：${this.status.changes}`),
-      new Item('🔽 Pull (拉取最新 skills)', 'opensync.pull', 'cloud-download'),
-      new Item('🔄 Refresh (刷新状态)', 'opensync.refresh', 'refresh'),
-      new Item('🔑 配置 Git 身份与凭证', 'opensync.setupGit', 'key'),
+      new Item(`${s.panelBranch}：${this.status.branch}`),
+      new Item(`${s.panelRemote}：${remoteText}`),
+      new Item(`${s.panelChanges}：${this.status.changes}`),
+      new Item(s.btnPull, 'opensync.pull', 'cloud-download'),
+      new Item(s.btnRefresh, 'opensync.refresh', 'refresh'),
+      new Item(s.btnSetup, 'opensync.setupGit', 'key'),
     ];
   }
 }

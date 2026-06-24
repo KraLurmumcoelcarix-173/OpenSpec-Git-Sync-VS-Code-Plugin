@@ -22,7 +22,18 @@
       { "command": "opensync.pull", "title": "OpenSpec: Pull Latest Skills" },
       { "command": "opensync.refresh", "title": "OpenSpec: Refresh Status" },
       { "command": "opensync.setupGit", "title": "OpenSpec: Configure Git Identity & Credential" }
-    ]
+    ],
+    "configuration": {
+      "title": "OpenSpec Skills Sync",
+      "properties": {
+        "opensync.language": {
+          "type": "string",
+          "enum": ["zh-CN", "en"],
+          "default": "zh-CN",
+          "description": "界面语言 / UI language"
+        }
+      }
+    }
   },
   "name": "openspec-skills-sync",
   "version": "0.1.0",
