@@ -1,8 +1,31 @@
 {
+  "displayName": "OpenSpec Skills Sync",
+  "engines": { "vscode": "^1.80.0" },
+  "main": "./dist/extension.js",
+  "activationEvents": [],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "opensync-sidebar",
+          "title": "OpenSpec Skills Sync",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "opensync-sidebar": [
+        { "id": "opensync.panel", "name": "Sync Panel" }
+      ]
+    },
+    "commands": [
+      { "command": "opensync.pull", "title": "OpenSpec: Pull Latest Skills" },
+      { "command": "opensync.refresh", "title": "OpenSpec: Refresh Status" }
+    ]
+  },
   "name": "openspec-skills-sync",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "",
-  "main": "index.js",
   "scripts": {
     "test": "jest",
     "compile": "tsc -p ./",
