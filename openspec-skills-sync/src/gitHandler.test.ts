@@ -153,3 +153,28 @@ describe('GitHandler.getAheadBehind', () => {
     expect(result).toEqual({ behind: 0, ahead: 0 });
   });
 });
+
+describe('GitHandler.listChangedFiles', () => {
+it('解析 porcelain 输出，返回改动文件的相对路径数组', async () => {
+    const fakeRunner = jest.fn().mockResolvedValue(
+      ' M .lingma/skills/a.md\n?? .lingma/skills/b.md\n'
+    );
+
+    const git = new GitHandler('/fake/repo', fakeRunner);
+    const files = await git.listChangedFiles('.lingma/skills');
+
+    expect(files).toEqual([
+      '.lingma/skills/a.md',
+      '.lingma/skills/b.md',
+    ]);
+  });
+
+  it('无改动时返回空数组', async () => {
+    const fakeRunner = jest.fn().mockResolvedValue('');
+
+    const git = new GitHandler('/fake/repo', fakeRunner);
+    const files = await git.listChangedFiles('.lingma/skills');
+
+    expect(files).toEqual([]);
+  });
+});

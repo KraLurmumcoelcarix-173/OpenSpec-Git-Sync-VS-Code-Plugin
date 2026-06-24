@@ -25,6 +25,16 @@ export class GitHandler {
     return out.length > 0;
   }
 
+async listChangedFiles(relPath: string): Promise<string[]> {
+    // 注意：不能用会 trim 的 execGit，否则行首状态码的空格被削掉。
+    // 直接调 runner 拿原始输出。
+    const raw = await this.runner('git', ['status', '--porcelain', '--', relPath], this.repoRoot);
+    return raw
+      .split('\n')
+      .filter(line => line.trim().length > 0)
+      .map(line => line.slice(3)); // 每行固定：2位状态码 + 1空格 + 路径
+  }
+
   async fetch(branch: string): Promise<void> {
     await this.execGit(['fetch', 'origin', branch]);
   }
