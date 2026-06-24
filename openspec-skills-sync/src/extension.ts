@@ -72,35 +72,49 @@ import * as vscode from 'vscode';
       await doRefresh(provider);
     }),    
 
-       vscode.commands.registerCommand('opensync.refresh', async () => {    
-         await doRefresh(provider);    
-       })    
+       vscode.commands.registerCommand('opensync.refresh', async () => {
+      const summary = await doRefresh(provider);
+      if (summary) {
+        vscode.window.showInformationMessage(`状态已刷新：${summary}`);
+      }
+    })   
      );    
      doRefresh(provider);
    }    
 
-   // 刷新状态面板    
-   async function doRefresh(provider: SyncProvider) {    
-     const root = resolveRepoRoot();    
-     if (!root) return;    
-     const git = new GitHandler(root, realGitRunner);    
-     try {    
-       const branch = await git.currentBranch();    
-       const hasRemote = await git.hasRemote();    
-       const changed = await git.listChangedFiles(SYNC_PATH);    
-       let remoteStatus = '无远程';    
-       if (hasRemote) {    
-         const { behind, ahead } = await git.getAheadBehind(branch);    
-         remoteStatus = behind === 0 && ahead === 0 ? 'up to date ✓' : `落后 ${behind} / 领先 ${ahead}`;    
-       }    
-       provider.refresh({    
-         branch,    
-         remote: remoteStatus,    
-         changes: changed.length === 0 ? '无' : `${changed.length} 个文件`,    
-       });    
-     } catch (e: any) {    
-       vscode.window.showErrorMessage(`刷新失败：${e?.message ?? e}`);    
-     }    
-   }    
+// 刷新状态面板，返回一句状态摘要（供命令决定是否弹提示）
+async function doRefresh(provider: SyncProvider): Promise<string | undefined> {
+  const root = resolveRepoRoot();
+  if (!root) return undefined;
+  const git = new GitHandler(root, realGitRunner);
+  try {
+    const branch = await git.currentBranch();
+    const hasRemote = await git.hasRemote();
+    const changed = await git.listChangedFiles(SYNC_PATH);
+    let remoteStatus = '无远程';
+    let summary = '';
+    if (hasRemote) {
+      const { behind, ahead } = await git.getAheadBehind(branch);
+      if (behind === 0 && ahead === 0) {
+        remoteStatus = 'up to date ✓';
+        summary = '已是最新 ✓';
+      } else {
+        remoteStatus = `落后 ${behind} / 领先 ${ahead}`;
+        summary = behind > 0 ? `远程有 ${behind} 个更新，可点击 Pull 拉取` : `本地领先 ${ahead}`;
+      }
+    } else {
+      summary = '未检测到远程仓库 origin';
+    }
+    provider.refresh({
+      branch,
+      remote: remoteStatus,
+      changes: changed.length === 0 ? '无' : `${changed.length} 个文件`,
+    });
+    return summary;
+  } catch (e: any) {
+    vscode.window.showErrorMessage(`刷新失败：${e?.message ?? e}`);
+    return undefined;
+  }
+}    
 
    export function deactivate() {}
