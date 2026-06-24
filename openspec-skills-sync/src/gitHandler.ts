@@ -72,6 +72,16 @@ async listChangedFiles(relPath: string): Promise<string[]> {
     await this.execGit(['config', key, value]);
   }
 
+  async getConfig(key: string): Promise<string | undefined> {
+    try {
+      const out = await this.execGit(['config', '--get', key]);
+      return out.length > 0 ? out : undefined;
+    } catch {
+      // git config --get 在键不存在时退出码非 0，会抛错 → 视为未配置
+      return undefined;
+    }
+  }
+
   async enableCredentialStore(): Promise<void> {
     // 明文存储凭证到 ~/.git-credentials（用户级，按团队要求）
     await this.execGit(['config', 'credential.helper', 'store']);

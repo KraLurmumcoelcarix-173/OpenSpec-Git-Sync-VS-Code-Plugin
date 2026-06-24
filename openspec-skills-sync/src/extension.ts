@@ -78,7 +78,7 @@ import * as vscode from 'vscode';
         vscode.window.showInformationMessage(`状态已刷新：${summary}`);
       }
     }) 
-      ,
+       ,
     vscode.commands.registerCommand('opensync.setupGit', async () => {
       const root = resolveRepoRoot();
       if (!root) {
@@ -87,16 +87,32 @@ import * as vscode from 'vscode';
       }
       const git = new GitHandler(root, realGitRunner);
 
+      // 先检测现状
+      const curName = await git.getConfig('user.name');
+      const curEmail = await git.getConfig('user.email');
+
+      if (curName && curEmail) {
+        // 已配置：显示现状，问是否重新配置
+        const choice = await vscode.window.showInformationMessage(
+          `✓ 已配置 Git 身份：${curName} <${curEmail}>`,
+          '重新配置',
+          '关闭'
+        );
+        if (choice !== '重新配置') return;
+      }
+
       const name = await vscode.window.showInputBox({
         prompt: '请输入 Git 用户名',
         placeHolder: '如：张三',
+        value: curName ?? '',
         ignoreFocusOut: true,
       });
-      if (name === undefined) return; // 用户按了 Esc
+      if (name === undefined) return;
 
       const email = await vscode.window.showInputBox({
         prompt: '请输入 Git 邮箱',
         placeHolder: '如：zhangsan@company.com',
+        value: curEmail ?? '',
         ignoreFocusOut: true,
       });
       if (email === undefined) return;

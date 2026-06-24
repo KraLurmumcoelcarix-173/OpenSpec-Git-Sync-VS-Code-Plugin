@@ -218,3 +218,34 @@ describe('GitHandler.enableCredentialStore', () => {
     );
   });
 });
+
+describe('GitHandler.getConfig', () => {
+  it('读到配置值时返回去空白的值', async () => {
+    const fakeRunner = jest.fn().mockResolvedValue('张三\n');
+    const git = new GitHandler('/fake/repo', fakeRunner);
+    const val = await git.getConfig('user.name');
+
+    expect(val).toBe('张三');
+    expect(fakeRunner).toHaveBeenCalledWith(
+      'git',
+      ['config', '--get', 'user.name'],
+      '/fake/repo'
+    );
+  });
+
+  it('配置不存在（命令抛错）时返回 undefined', async () => {
+    const fakeRunner = jest.fn().mockRejectedValue(new Error('exit code 1'));
+    const git = new GitHandler('/fake/repo', fakeRunner);
+    const val = await git.getConfig('user.name');
+
+    expect(val).toBeUndefined();
+  });
+
+  it('值为空白时返回 undefined', async () => {
+    const fakeRunner = jest.fn().mockResolvedValue('  \n');
+    const git = new GitHandler('/fake/repo', fakeRunner);
+    const val = await git.getConfig('user.name');
+
+    expect(val).toBeUndefined();
+  });
+});
