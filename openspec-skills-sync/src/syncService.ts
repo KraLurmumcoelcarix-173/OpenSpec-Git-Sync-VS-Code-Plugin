@@ -24,7 +24,7 @@ export class SyncService {
     private syncPath: string
   ) {}
 
-  async pull(): Promise<PullResult> {
+async pull(): Promise<PullResult> {
     // 1. 必须有 origin
     if (!(await this.git.hasRemote())) {
       return { status: 'no-remote' };
@@ -32,18 +32,19 @@ export class SyncService {
 
     const branch = await this.git.currentBranch();
 
-    // 2. 有改动则先备份
-    const changed = await this.git.listChangedFiles(this.syncPath);
-    let backupName: string | null = null;
-    if (changed.length > 0) {
-      backupName = await this.backup(changed);
-    }
-
-    // 3. fetch（失败即止，不 reset）
+    // 2. 先 fetch —— 只下载远程引用，不碰工作区。
+    //    失败（网络/认证）即止，此时尚未备份，不留垃圾备份。
     try {
       await this.git.fetch(branch);
     } catch (e: any) {
       return { status: 'fetch-failed', error: e?.message ?? String(e) };
+    }
+
+    // 3. fetch 成功后才检查改动并备份（备份只需赶在 reset 之前）
+    const changed = await this.git.listChangedFiles(this.syncPath);
+    let backupName: string | null = null;
+    if (changed.length > 0) {
+      backupName = await this.backup(changed);
     }
 
     // 4. reset --hard 对齐远程

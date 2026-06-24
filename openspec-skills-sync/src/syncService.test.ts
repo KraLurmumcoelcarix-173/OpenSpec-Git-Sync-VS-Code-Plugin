@@ -72,6 +72,7 @@ describe('SyncService.pull', () => {
 
     expect(result.status).toBe('fetch-failed');
     expect(git.resetHard).not.toHaveBeenCalled();
+    expect(backup).not.toHaveBeenCalled(); //新增：Pull 网络失败不应该备份
   });
 
   it('reset 失败时返回 reset-failed', async () => {
