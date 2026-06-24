@@ -105,6 +105,9 @@ openspec-skills-sync/
 ## 七、开发与调试
 
 ```bash
+
+cd openspec-skills-sync/
+
 # 安装依赖
 npm install
 
