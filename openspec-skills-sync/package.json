@@ -2,7 +2,7 @@
   "displayName": "OpenSpec Skills Sync",
   "engines": { "vscode": "^1.80.0" },
   "main": "./dist/extension.js",
-  "activationEvents": [],
+  "activationEvents": ["onStartupFinished"],
   "contributes": {
     "viewsContainers": {
       "activitybar": [

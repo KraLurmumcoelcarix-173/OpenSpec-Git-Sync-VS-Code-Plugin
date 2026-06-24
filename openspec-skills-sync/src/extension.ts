@@ -76,6 +76,7 @@ import * as vscode from 'vscode';
          await doRefresh(provider);    
        })    
      );    
+     doRefresh(provider);
    }    
 
    // 刷新状态面板    
