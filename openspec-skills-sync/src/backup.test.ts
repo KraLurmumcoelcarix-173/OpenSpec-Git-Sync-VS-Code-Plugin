@@ -43,3 +43,59 @@ describe('nextBackupName', () => {
     expect(nextBackupName('2026-06-23', existing)).toBe('2026-06-23-10');
   });
 });
+
+import { backupFiles, FileOps } from './backup';
+
+describe('backupFiles', () => {
+  it('为每个文件建目录并复制到备份路径', async () => {
+    const calls: { mkdir: string[]; copy: Array<[string, string]> } = {
+      mkdir: [],
+      copy: [],
+    };
+
+    // 假的文件操作器：只记录被要求做什么，不真碰磁盘
+    const fakeOps: FileOps = {
+      mkdir: async (dir) => { calls.mkdir.push(dir); },
+      copyFile: async (src, dest) => { calls.copy.push([src, dest]); },
+    };
+
+    await backupFiles(
+      '/repo',
+      ['.lingma/skills/a.md', '.lingma/skills/sub/b.md'],
+      '2026-06-23-01',
+      fakeOps
+    );
+
+    // 两个文件都被复制
+    expect(calls.copy).toEqual([
+      [
+        '/repo/.lingma/skills/a.md',
+        '/repo/.lingma/.backup/2026-06-23-01/.lingma/skills/a.md',
+      ],
+      [
+        '/repo/.lingma/skills/sub/b.md',
+        '/repo/.lingma/.backup/2026-06-23-01/.lingma/skills/sub/b.md',
+      ],
+    ]);
+
+    // 复制前每个文件的目标目录都被建过（recursive）
+    expect(calls.mkdir).toContain(
+      '/repo/.lingma/.backup/2026-06-23-01/.lingma/skills'
+    );
+    expect(calls.mkdir).toContain(
+      '/repo/.lingma/.backup/2026-06-23-01/.lingma/skills/sub'
+    );
+  });
+
+  it('空文件列表时不做任何复制', async () => {
+    const calls: Array<[string, string]> = [];
+    const fakeOps: FileOps = {
+      mkdir: async () => {},
+      copyFile: async (src, dest) => { calls.push([src, dest]); },
+    };
+
+    await backupFiles('/repo', [], '2026-06-23-01', fakeOps);
+
+    expect(calls).toEqual([]);
+  });
+});
