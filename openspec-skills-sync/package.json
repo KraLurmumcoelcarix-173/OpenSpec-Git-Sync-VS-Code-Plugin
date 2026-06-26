@@ -3,7 +3,7 @@
   "displayName": "OpenSpec Skills Sync",
   "description": "一键同步 OpenSpec skills 文档的 VS Code 插件，面向非开发者",
   "version": "0.1.0",
-  "publisher": "AI-Coding-Group",
+  "publisher": "AI-CODING-GROUP",
   "license": "ISC",
   "repository": {
     "type": "git",

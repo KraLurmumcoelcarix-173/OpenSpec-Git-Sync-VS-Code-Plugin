@@ -84,6 +84,25 @@ npm run compile    # 编译
 
 调试：用 VS Code 打开本项目（`openspec-skills-sync`）→「运行和调试」面板选 **Run Extension** → 启动扩展宿主窗口 → 在其中打开一个含 `.lingma/skills/` 的 Git 仓库测试。调试配置见 `.vscode/launch.json`。
 
+### 八、打包与内部分发
+
+本插件通过 `.vsix` 文件在团队内部分发。
+
+打包步骤：
+
+```bash
+cd openspec-skills-sync
+npm install -g @vscode/vsce   # 首次需安装打包工具
+npm run compile               # 编译出最新 dist
+vsce package                  # 生成 openspec-skills-sync-<version>.vsix
+```
+
+安装步骤（接收方）：
+
+在 VS Code 扩展面板右上角 `...` 菜单 → **Install from VSIX...** → 选择 `.vsix` 文件即可。
+
+更新版本：修改 `package.json` 的 `version`，重新 `vsce package` 生成新包分发即可。
+
 ---
 
 <a id="english"></a>
@@ -162,5 +181,21 @@ npm install        # install dependencies
 npm test           # run tests
 npm run compile    # compile
 ```
+
+### 8. Packaging & Internal Distribution
+
+This extension is distributed internally as a `.vsix` file, without publishing to the public marketplace.
+
+Packaging steps:
+
+    npm install -g @vscode/vsce   # install the packaging tool (first time only)
+    npm run compile               # compile the latest dist
+    vsce package                  # generates openspec-skills-sync-<version>.vsix
+
+Installation (for recipients):
+
+In the VS Code Extensions panel, click the `...` menu in the top-right → **Install from VSIX...** → select the `.vsix` file.
+
+Updating: bump the `version` field in `package.json`, then run `vsce package` again to produce a new package for distribution.
 
 Debug: open this project (`openspec-skills-sync`) in VS Code → Run and Debug panel → select **Run Extension** → in the host window, open a Git repo containing `.lingma/skills/`. See `.vscode/launch.json`.
