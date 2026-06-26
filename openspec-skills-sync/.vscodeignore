@@ -1,0 +1,8 @@
+.vscode/**
+src/**
+**/*.ts
+node_modules/**
+tsconfig.json
+jest.config.js
+.gitignore
+make-icon.js
