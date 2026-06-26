@@ -18,6 +18,24 @@ export function activate(context: vscode.ExtensionContext) {
   const provider = new SyncProvider();
   vscode.window.registerTreeDataProvider('opensync.panel', provider);
 
+  // 执行锁：命令进行中时忽略重复点击
+  let busy = false;
+  async function runExclusive(title: string, task: () => Promise<void>) {
+    if (busy) {
+      vscode.window.showInformationMessage(strings().alreadyRunning);
+      return;
+    }
+    busy = true;
+    try {
+      await vscode.window.withProgress(
+        { location: vscode.ProgressLocation.Notification, title, cancellable: false },
+        async () => { await task(); }
+      );
+    } finally {
+      busy = false;
+    }
+  }
+
   function buildService(): SyncService | undefined {
     const s = strings();
     const root = resolveRepoRoot();
@@ -32,70 +50,68 @@ export function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand('opensync.pull', async () => {
-      const s = strings();
+      await runExclusive(strings().progressPulling, async () => {
+        const s = strings();
 
-      // 保护：reset --hard 会强制对齐当前分支到 origin/main，
-      // 若用户不在同步分支(main)上，会毁掉其分支工作。必须拦截。
-      const root0 = resolveRepoRoot();
-      if (root0) {
-        const git0 = new GitHandler(root0, realGitRunner);
-        try {
-          const current = await git0.currentBranch();
-          if (current !== syncBranch()) {
-            vscode.window.showWarningMessage(s.notOnSyncBranch(current, syncBranch()));
+        // 保护：非 main 分支拦截
+        const root0 = resolveRepoRoot();
+        if (root0) {
+          const git0 = new GitHandler(root0, realGitRunner);
+          try {
+            const current = await git0.currentBranch();
+            if (current !== syncBranch()) {
+              vscode.window.showWarningMessage(s.notOnSyncBranch(current, syncBranch()));
+              return;
+            }
+          } catch { /* 拿不到分支名就不拦 */ }
+        }
+
+        // 未保存拦截
+        const dirtyDocs = vscode.workspace.textDocuments.filter(
+          doc => doc.isDirty && !doc.isUntitled
+        );
+        if (dirtyDocs.length > 0) {
+          const names = dirtyDocs.map(d => d.fileName.split(/[\\/]/).pop()).join('、');
+          const choice = await vscode.window.showWarningMessage(
+            s.dirtyWarn(names), s.dirtySaveAndContinue, s.cancel
+          );
+          if (choice === s.dirtySaveAndContinue) {
+            await vscode.workspace.saveAll(false);
+          } else {
             return;
           }
-        } catch {
-          // 拿不到分支名就不强行拦，交给后续流程报错
         }
-      }
 
-      // 拦截：有未保存的脏文档时，不允许 Pull
-      const dirtyDocs = vscode.workspace.textDocuments.filter(
-        doc => doc.isDirty && !doc.isUntitled
-      );
-      if (dirtyDocs.length > 0) {
-        const names = dirtyDocs.map(d => d.fileName.split(/[\\/]/).pop()).join('、');
-        const choice = await vscode.window.showWarningMessage(
-          s.dirtyWarn(names),
-          s.dirtySaveAndContinue,
-          s.cancel
-        );
-        if (choice === s.dirtySaveAndContinue) {
-          await vscode.workspace.saveAll(false);
-        } else {
-          return;
+        const svc = buildService();
+        if (!svc) return;
+        const result = await svc.pull();
+        switch (result.status) {
+          case 'ok':
+            vscode.window.showInformationMessage(
+              result.backupName ? s.pullOkWithBackup(result.backupName) : s.pullOkNoBackup
+            );
+            break;
+          case 'no-remote':
+            vscode.window.showWarningMessage(s.pullNoRemote);
+            break;
+          case 'fetch-failed':
+            vscode.window.showErrorMessage(s.pullFetchFailed(result.error));
+            break;
+          case 'reset-failed':
+            vscode.window.showErrorMessage(s.pullResetFailed(result.error));
+            break;
         }
-      }
-
-      const svc = buildService();
-      if (!svc) return;
-      const result = await svc.pull();
-      switch (result.status) {
-        case 'ok':
-          vscode.window.showInformationMessage(
-            result.backupName ? s.pullOkWithBackup(result.backupName) : s.pullOkNoBackup
-          );
-          break;
-        case 'no-remote':
-          vscode.window.showWarningMessage(s.pullNoRemote);
-          break;
-        case 'fetch-failed':
-          vscode.window.showErrorMessage(s.pullFetchFailed(result.error));
-          break;
-        case 'reset-failed':
-          vscode.window.showErrorMessage(s.pullResetFailed(result.error));
-          break;
-      }
-      await doRefresh(provider);
+        await doRefresh(provider);
+      });
     }),
 
     vscode.commands.registerCommand('opensync.refresh', async () => {
-      const s = strings();
-      const summary = await doRefresh(provider);
-      if (summary) {
-        vscode.window.showInformationMessage(s.refreshDone(summary));
-      }
+      await runExclusive(strings().progressRefreshing, async () => {
+        const summary = await doRefresh(provider);
+        if (summary) {
+          vscode.window.showInformationMessage(strings().refreshDone(summary));
+        }
+      });
     }),
 
     vscode.commands.registerCommand('opensync.setupGit', async () => {

@@ -53,6 +53,9 @@ const STRINGS = {
     summaryHasUpdate: 'main 有更新，点击 Pull 拉取',
     notOnSyncBranch: (current: string, branch: string) =>
       `当前在「${current}」分支，拉取只能在「${branch}」分支进行。请先切换到 ${branch}。`,
+    alreadyRunning: '操作进行中，请稍候…',
+    progressPulling: '正在拉取最新 skills…',
+    progressRefreshing: '正在刷新状态…',
   },
   'en': {
     panelBranch: 'Branch',
@@ -98,6 +101,9 @@ const STRINGS = {
     summaryHasUpdate: 'main has updates, click Pull to fetch',
     notOnSyncBranch: (current: string, branch: string) =>
       `You are on "${current}". Pull is only allowed on "${branch}". Please switch to ${branch} first.`,
+    alreadyRunning: 'An operation is in progress, please wait…',
+    progressPulling: 'Pulling latest skills…',
+    progressRefreshing: 'Refreshing status…',
   },
 } as const;
 
