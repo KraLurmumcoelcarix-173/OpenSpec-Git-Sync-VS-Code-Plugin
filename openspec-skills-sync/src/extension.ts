@@ -16,7 +16,16 @@ function syncBranch(): string {
 
 export function activate(context: vscode.ExtensionContext) {
   const provider = new SyncProvider();
-  vscode.window.registerTreeDataProvider('opensync.panel', provider);
+  const treeView = vscode.window.createTreeView('opensync.panel', {
+    treeDataProvider: provider,
+  });
+
+  // 面板每次从隐藏变为可见时自动刷新状态
+  treeView.onDidChangeVisibility((e) => {
+    if (e.visible && !busy) {
+      doRefresh(provider);
+    }
+  });
 
   // 执行锁：命令进行中时忽略重复点击
   let busy = false;
@@ -49,6 +58,7 @@ export function activate(context: vscode.ExtensionContext) {
   }
 
   context.subscriptions.push(
+    treeView,
     vscode.commands.registerCommand('opensync.pull', async () => {
       await runExclusive(strings().progressPulling, async () => {
         const s = strings();
