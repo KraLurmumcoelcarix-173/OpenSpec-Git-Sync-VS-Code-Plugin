@@ -1,12 +1,18 @@
 {
+  "name": "openspec-skills-sync",
   "displayName": "OpenSpec Skills Sync",
-  "engines": {
-    "vscode": "^1.80.0"
+  "description": "一键同步 OpenSpec skills 文档的 VS Code 插件，面向非开发者",
+  "version": "0.1.0",
+  "publisher": "AI-Coding-Group",
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/KraLurmumcoelcarix-173/OpenSpec-Git-Sync-VS-Code-Plugin.git"
   },
+  "engines": { "vscode": "^1.80.0" },
   "main": "./dist/extension.js",
-  "activationEvents": [
-    "onStartupFinished"
-  ],
+  "icon": "media/icon.png",
+  "activationEvents": ["onStartupFinished"],
   "contributes": {
     "viewsContainers": {
       "activitybar": [
@@ -19,35 +25,20 @@
     },
     "views": {
       "opensync-sidebar": [
-        {
-          "id": "opensync.panel",
-          "name": "Sync Panel"
-        }
+        { "id": "opensync.panel", "name": "Sync Panel" }
       ]
     },
     "commands": [
-      {
-        "command": "opensync.pull",
-        "title": "OpenSpec: Pull Latest Skills"
-      },
-      {
-        "command": "opensync.refresh",
-        "title": "OpenSpec: Refresh Status"
-      },
-      {
-        "command": "opensync.setupGit",
-        "title": "OpenSpec: Configure Git Identity & Credential"
-      }
+      { "command": "opensync.pull", "title": "OpenSpec: Pull Latest Skills" },
+      { "command": "opensync.refresh", "title": "OpenSpec: Refresh Status" },
+      { "command": "opensync.setupGit", "title": "OpenSpec: Configure Git Identity & Credential" }
     ],
     "configuration": {
       "title": "OpenSpec Skills Sync",
       "properties": {
         "opensync.language": {
           "type": "string",
-          "enum": [
-            "zh-CN",
-            "en"
-          ],
+          "enum": ["zh-CN", "en"],
           "default": "zh-CN",
           "description": "界面语言 / UI language"
         },
@@ -59,9 +50,6 @@
       }
     }
   },
-  "name": "openspec-skills-sync",
-  "version": "0.1.0",
-  "description": "",
   "scripts": {
     "test": "jest",
     "compile": "tsc -p ./",
@@ -69,14 +57,12 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
     "@types/jest": "^30.0.0",
     "@types/node": "^26.0.0",
     "@types/vscode": "^1.125.0",
     "jest": "^30.4.2",
-    "sharp": "^0.35.2",
     "ts-jest": "^29.4.11",
     "typescript": "^6.0.3"
   }
