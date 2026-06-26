@@ -9,7 +9,7 @@
     "type": "git",
     "url": "https://github.com/KraLurmumcoelcarix-173/OpenSpec-Git-Sync-VS-Code-Plugin.git"
   },
-  "engines": { "vscode": "^1.80.0" },
+  "engines": { "vscode": "^1.125.0" },
   "main": "./dist/extension.js",
   "icon": "media/icon.png",
   "activationEvents": ["onStartupFinished"],
