@@ -117,5 +117,5 @@ npm test
 # 编译
 npm run compile
 
-# 调试：在 VS Code 中打开本项目，按 F5 启动扩展开发宿主窗口
+# 调试：在 VS Code 中打开 openspec-skills-sync Folder，按 F5 或者 Ctrl + Shift + D 启动扩展开发宿主窗口
 ```
