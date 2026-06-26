@@ -56,6 +56,8 @@ const STRINGS = {
     alreadyRunning: '操作进行中，请稍候…',
     progressPulling: '正在拉取最新 skills…',
     progressRefreshing: '正在刷新状态…',
+    statusOffline: '⚠️ 无法连接远程',
+    summaryOffline: '无法连接远程仓库，显示的可能不是最新状态',
   },
   'en': {
     panelBranch: 'Branch',
@@ -104,6 +106,8 @@ const STRINGS = {
     alreadyRunning: 'An operation is in progress, please wait…',
     progressPulling: 'Pulling latest skills…',
     progressRefreshing: 'Refreshing status…',
+    statusOffline: '⚠️ Remote unreachable',
+    summaryOffline: 'Cannot reach remote; status shown may be outdated',
   },
 } as const;
 

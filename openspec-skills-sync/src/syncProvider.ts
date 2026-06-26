@@ -42,6 +42,7 @@ getChildren(): Item[] {
     const remoteIcon =
       remoteText === s.statusUpToDate ? 'pass-filled'
       : remoteText === s.statusNoRemote ? 'error'
+      : remoteText === s.statusOffline ? 'cloud'
       : remoteText === s.statusHasUpdate ? 'cloud-download'
       : 'sync';
     return [

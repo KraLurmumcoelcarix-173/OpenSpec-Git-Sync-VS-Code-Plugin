@@ -179,8 +179,13 @@ async function doRefresh(provider: SyncProvider): Promise<string | undefined> {
     let remoteStatus: string = s.statusNoRemote;
     let summary: string = '';
     if (hasRemote) {
-      // 静默 fetch 同步分支，确保对比的是最新的 origin/main
-      await git.fetch(branch).catch(() => {});
+      // 尝试 fetch 同步分支；失败（网络/认证）时标注状态可能过时
+      let fetchFailed = false;
+      try {
+        await git.fetch(branch);
+      } catch {
+        fetchFailed = true;
+      }
       const hasDiff = await git.diffsFromRef(`origin/${branch}`, SYNC_PATH);
       if (!hasDiff) {
         remoteStatus = s.statusUpToDate;
@@ -188,6 +193,10 @@ async function doRefresh(provider: SyncProvider): Promise<string | undefined> {
       } else {
         remoteStatus = s.statusHasUpdate;
         summary = s.summaryHasUpdate;
+      }
+      if (fetchFailed) {
+        remoteStatus = s.statusOffline;
+        summary = s.summaryOffline;
       }
     } else {
       summary = s.summaryNoRemote;
