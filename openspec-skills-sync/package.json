@@ -9,10 +9,14 @@
     "type": "git",
     "url": "https://github.com/KraLurmumcoelcarix-173/OpenSpec-Git-Sync-VS-Code-Plugin.git"
   },
-  "engines": { "vscode": "^1.125.0" },
+  "engines": {
+    "vscode": "^1.125.0"
+  },
   "main": "./dist/extension.js",
   "icon": "media/icon.png",
-  "activationEvents": ["onStartupFinished"],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "contributes": {
     "viewsContainers": {
       "activitybar": [
@@ -25,20 +29,35 @@
     },
     "views": {
       "opensync-sidebar": [
-        { "id": "opensync.panel", "name": "Sync Panel" }
+        {
+          "id": "opensync.panel",
+          "name": "Sync Panel"
+        }
       ]
     },
     "commands": [
-      { "command": "opensync.pull", "title": "OpenSpec: Pull Latest Skills" },
-      { "command": "opensync.refresh", "title": "OpenSpec: Refresh Status" },
-      { "command": "opensync.setupGit", "title": "OpenSpec: Configure Git Identity & Credential" }
+      {
+        "command": "opensync.pull",
+        "title": "OpenSpec: Pull Latest Skills"
+      },
+      {
+        "command": "opensync.refresh",
+        "title": "OpenSpec: Refresh Status"
+      },
+      {
+        "command": "opensync.setupGit",
+        "title": "OpenSpec: Configure Git Identity & Credential"
+      }
     ],
     "configuration": {
       "title": "OpenSpec Skills Sync",
       "properties": {
         "opensync.language": {
           "type": "string",
-          "enum": ["zh-CN", "en"],
+          "enum": [
+            "zh-CN",
+            "en"
+          ],
           "default": "zh-CN",
           "description": "界面语言 / UI language"
         },
