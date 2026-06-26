@@ -68,6 +68,22 @@ async listChangedFiles(relPath: string): Promise<string[]> {
     }
   }
 
+  // 从指定 ref（如 origin/main）签出某路径到工作区，不改 HEAD、不切分支
+  async checkoutFromRef(ref: string, relPath: string): Promise<void> {
+    await this.execGit(['checkout', ref, '--', relPath]);
+  }
+
+  // 计算当前 HEAD 相对指定 ref 的 behind/ahead（用于面板显示"落后 main 多少"）
+  async getAheadBehindVs(ref: string): Promise<{ behind: number; ahead: number }> {
+    try {
+      const out = await this.execGit(['rev-list', '--count', '--left-right', `${ref}...HEAD`]);
+      const [behindStr, aheadStr] = out.split(/\s+/);
+      return { behind: Number(behindStr) || 0, ahead: Number(aheadStr) || 0 };
+    } catch {
+      return { behind: 0, ahead: 0 };
+    }
+  }
+
   async setConfig(key: string, value: string): Promise<void> {
     await this.execGit(['config', key, value]);
   }

@@ -249,3 +249,39 @@ describe('GitHandler.getConfig', () => {
     expect(val).toBeUndefined();
   });
 });
+
+describe('GitHandler.checkoutFromRef', () => {
+  it('从指定 ref 签出指定路径到工作区', async () => {
+    const fakeRunner = jest.fn().mockResolvedValue('');
+    const git = new GitHandler('/fake/repo', fakeRunner);
+    await git.checkoutFromRef('origin/main', '.lingma/skills');
+
+    expect(fakeRunner).toHaveBeenCalledWith(
+      'git',
+      ['checkout', 'origin/main', '--', '.lingma/skills'],
+      '/fake/repo'
+    );
+  });
+});
+
+describe('GitHandler.getAheadBehindVs', () => {
+  it('计算当前 HEAD 相对指定 ref 的落后/领先', async () => {
+    const fakeRunner = jest.fn().mockResolvedValue('1\t4\n');
+    const git = new GitHandler('/fake/repo', fakeRunner);
+    const result = await git.getAheadBehindVs('origin/main');
+
+    expect(result).toEqual({ behind: 1, ahead: 4 });
+    expect(fakeRunner).toHaveBeenCalledWith(
+      'git',
+      ['rev-list', '--count', '--left-right', 'origin/main...HEAD'],
+      '/fake/repo'
+    );
+  });
+
+  it('失败时降级为 0/0', async () => {
+    const fakeRunner = jest.fn().mockRejectedValue(new Error('no ref'));
+    const git = new GitHandler('/fake/repo', fakeRunner);
+    const result = await git.getAheadBehindVs('origin/main');
+    expect(result).toEqual({ behind: 0, ahead: 0 });
+  });
+});
