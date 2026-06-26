@@ -103,4 +103,15 @@ async listChangedFiles(relPath: string): Promise<string[]> {
     await this.execGit(['config', 'credential.helper', 'store']);
   }
 
+  // 工作区指定路径是否与某 ref 有差异。
+  // git diff --quiet：无差异退出 0，有差异退出 1（抛错）。
+  async diffsFromRef(ref: string, relPath: string): Promise<boolean> {
+    try {
+      await this.execGit(['diff', '--quiet', ref, '--', relPath]);
+      return false; // 退出 0 = 无差异
+    } catch {
+      return true;  // 退出非 0 = 有差异
+    }
+  }
+
 }

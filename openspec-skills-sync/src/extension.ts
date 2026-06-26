@@ -10,6 +10,10 @@ import { strings } from './i18n';
 
 const SYNC_PATH = '.lingma/skills';
 
+function syncBranch(): string {
+  return vscode.workspace.getConfiguration('opensync').get<string>('syncBranch', 'main');
+}
+
 export function activate(context: vscode.ExtensionContext) {
   const provider = new SyncProvider();
   vscode.window.registerTreeDataProvider('opensync.panel', provider);
@@ -23,12 +27,29 @@ export function activate(context: vscode.ExtensionContext) {
     }
     const git = new GitHandler(root, realGitRunner);
     const backupFn = makeBackupFn(root, realFileOps);
-    return new SyncService(git, backupFn, SYNC_PATH);
+    return new SyncService(git, backupFn, SYNC_PATH, syncBranch());
   }
 
   context.subscriptions.push(
     vscode.commands.registerCommand('opensync.pull', async () => {
       const s = strings();
+
+      // 保护：reset --hard 会强制对齐当前分支到 origin/main，
+      // 若用户不在同步分支(main)上，会毁掉其分支工作。必须拦截。
+      const root0 = resolveRepoRoot();
+      if (root0) {
+        const git0 = new GitHandler(root0, realGitRunner);
+        try {
+          const current = await git0.currentBranch();
+          if (current !== syncBranch()) {
+            vscode.window.showWarningMessage(s.notOnSyncBranch(current, syncBranch()));
+            return;
+          }
+        } catch {
+          // 拿不到分支名就不强行拦，交给后续流程报错
+        }
+      }
+
       // 拦截：有未保存的脏文档时，不允许 Pull
       const dirtyDocs = vscode.workspace.textDocuments.filter(
         doc => doc.isDirty && !doc.isUntitled
@@ -135,29 +156,27 @@ async function doRefresh(provider: SyncProvider): Promise<string | undefined> {
   const root = resolveRepoRoot();
   if (!root) return undefined;
   const git = new GitHandler(root, realGitRunner);
+  const branch = syncBranch();
   try {
-    const branch = await git.currentBranch();
+    const current = await git.currentBranch();
     const hasRemote = await git.hasRemote();
-    const changed = await git.listChangedFiles(SYNC_PATH);
     let remoteStatus: string = s.statusNoRemote;
     let summary: string = '';
     if (hasRemote) {
-      const { behind, ahead } = await git.getAheadBehind(branch);
-      if (behind === 0 && ahead === 0) {
+      // 静默 fetch 同步分支，确保对比的是最新的 origin/main
+      await git.fetch(branch).catch(() => {});
+      const hasDiff = await git.diffsFromRef(`origin/${branch}`, SYNC_PATH);
+      if (!hasDiff) {
         remoteStatus = s.statusUpToDate;
         summary = s.summaryUpToDate;
       } else {
-        remoteStatus = s.remoteAheadBehind(behind, ahead);
-        summary = behind > 0 ? s.summaryBehind(behind) : s.summaryAhead(ahead);
+        remoteStatus = s.statusHasUpdate;
+        summary = s.summaryHasUpdate;
       }
     } else {
       summary = s.summaryNoRemote;
     }
-    provider.refresh({
-      branch,
-      remote: remoteStatus,
-      changes: changed.length === 0 ? s.changesNone : s.changesFiles(changed.length),
-    });
+    provider.refresh({ branch: current, remote: remoteStatus });
     return summary;
   } catch (e: any) {
     vscode.window.showErrorMessage(s.refreshFailed(e?.message ?? String(e)));

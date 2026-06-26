@@ -285,3 +285,27 @@ describe('GitHandler.getAheadBehindVs', () => {
     expect(result).toEqual({ behind: 0, ahead: 0 });
   });
 });
+
+describe('GitHandler.diffsFromRef', () => {
+  it('有差异时返回 true（diff 退出码非 0 抛错 → true）', async () => {
+    // git diff --quiet 在有差异时退出码为 1，execFile 会抛错
+    const fakeRunner = jest.fn().mockRejectedValue(new Error('exit 1'));
+    const git = new GitHandler('/fake/repo', fakeRunner);
+    const result = await git.diffsFromRef('origin/main', '.lingma/skills');
+
+    expect(result).toBe(true);
+    expect(fakeRunner).toHaveBeenCalledWith(
+      'git',
+      ['diff', '--quiet', 'origin/main', '--', '.lingma/skills'],
+      '/fake/repo'
+    );
+  });
+
+  it('无差异时返回 false（diff 退出码 0，正常返回）', async () => {
+    const fakeRunner = jest.fn().mockResolvedValue('');
+    const git = new GitHandler('/fake/repo', fakeRunner);
+    const result = await git.diffsFromRef('origin/main', '.lingma/skills');
+
+    expect(result).toBe(false);
+  });
+});

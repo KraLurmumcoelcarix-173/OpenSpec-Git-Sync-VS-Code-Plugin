@@ -18,8 +18,7 @@ describe('SyncService.pull', () => {
   it('没有 origin 时返回 no-remote，不执行任何拉取', async () => {
     const git = makeFakeGit({ hasRemote: jest.fn().mockResolvedValue(false) });
     const backup = jest.fn();
-
-    const svc = new SyncService(git as any, backup, '.lingma/skills');
+    const svc = new SyncService(git as any, backup, '.lingma/skills', 'main');
     const result = await svc.pull();
 
     expect(result.status).toBe('no-remote');
@@ -28,11 +27,10 @@ describe('SyncService.pull', () => {
     expect(backup).not.toHaveBeenCalled();
   });
 
-  it('无本地改动：跳过备份，直接 fetch + reset，返回 ok 且 backupName 为 null', async () => {
+  it('无本地改动：跳过备份，fetch main 后 reset 到 origin/main', async () => {
     const git = makeFakeGit({ listChangedFiles: jest.fn().mockResolvedValue([]) });
     const backup = jest.fn();
-
-    const svc = new SyncService(git as any, backup, '.lingma/skills');
+    const svc = new SyncService(git as any, backup, '.lingma/skills', 'main');
     const result = await svc.pull();
 
     expect(result).toEqual<PullResult>({ status: 'ok', backupName: null });
@@ -41,47 +39,33 @@ describe('SyncService.pull', () => {
     expect(git.resetHard).toHaveBeenCalledWith('main');
   });
 
-  it('有本地改动：先备份再 fetch + reset，返回备份名', async () => {
+  it('有本地改动：先备份再 reset，返回备份名', async () => {
     const changed = ['.lingma/skills/a.md'];
-    const git = makeFakeGit({
-      listChangedFiles: jest.fn().mockResolvedValue(changed),
-    });
+    const git = makeFakeGit({ listChangedFiles: jest.fn().mockResolvedValue(changed) });
     const backup = jest.fn().mockResolvedValue('2026-06-23-01');
-
-    const svc = new SyncService(git as any, backup, '.lingma/skills');
+    const svc = new SyncService(git as any, backup, '.lingma/skills', 'main');
     const result = await svc.pull();
 
-    expect(result).toEqual<PullResult>({
-      status: 'ok',
-      backupName: '2026-06-23-01',
-    });
-    // 备份发生在拉取之前
+    expect(result).toEqual<PullResult>({ status: 'ok', backupName: '2026-06-23-01' });
     expect(backup).toHaveBeenCalledWith(changed);
-    expect(git.fetch).toHaveBeenCalled();
-    expect(git.resetHard).toHaveBeenCalled();
+    expect(git.resetHard).toHaveBeenCalledWith('main');
   });
 
-  it('fetch 失败时返回 fetch-failed，且不执行 reset', async () => {
-    const git = makeFakeGit({
-      fetch: jest.fn().mockRejectedValue(new Error('auth failed')),
-    });
+  it('fetch 失败时返回 fetch-failed，不 reset，也不备份', async () => {
+    const git = makeFakeGit({ fetch: jest.fn().mockRejectedValue(new Error('auth failed')) });
     const backup = jest.fn();
-
-    const svc = new SyncService(git as any, backup, '.lingma/skills');
+    const svc = new SyncService(git as any, backup, '.lingma/skills', 'main');
     const result = await svc.pull();
 
     expect(result.status).toBe('fetch-failed');
     expect(git.resetHard).not.toHaveBeenCalled();
-    expect(backup).not.toHaveBeenCalled(); //新增：Pull 网络失败不应该备份
+    expect(backup).not.toHaveBeenCalled();
   });
 
   it('reset 失败时返回 reset-failed', async () => {
-    const git = makeFakeGit({
-      resetHard: jest.fn().mockRejectedValue(new Error('no such branch')),
-    });
+    const git = makeFakeGit({ resetHard: jest.fn().mockRejectedValue(new Error('no branch')) });
     const backup = jest.fn();
-
-    const svc = new SyncService(git as any, backup, '.lingma/skills');
+    const svc = new SyncService(git as any, backup, '.lingma/skills', 'main');
     const result = await svc.pull();
 
     expect(result.status).toBe('reset-failed');

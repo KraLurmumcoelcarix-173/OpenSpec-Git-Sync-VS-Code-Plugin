@@ -24,7 +24,7 @@ export class SyncProvider implements vscode.TreeDataProvider<Item> {
   private _onDidChange = new vscode.EventEmitter<void>();
   readonly onDidChangeTreeData = this._onDidChange.event;
 
-  private status = { branch: '—', remote: '', changes: '—' };
+  private status = { branch: '—', remote: ''};
 
   refresh(status?: Partial<typeof this.status>) {
     if (status) this.status = { ...this.status, ...status };
@@ -35,16 +35,15 @@ export class SyncProvider implements vscode.TreeDataProvider<Item> {
     return el;
   }
 
-  getChildren(): Item[] {
+getChildren(): Item[] {
     const s = strings();
     const remoteText = this.status.remote || s.statusNotRefreshed;
-
-    // 根据远程状态选不同颜色的图标，给用户直观的"绿灯/黄灯"感
+    // 根据远程状态选不同图标，给用户直观的状态感
     const remoteIcon =
       remoteText === s.statusUpToDate ? 'pass-filled'
       : remoteText === s.statusNoRemote ? 'error'
-      : 'arrow-circle-down';
-
+      : remoteText === s.statusHasUpdate ? 'cloud-download'
+      : 'sync';
     return [
       // —— 状态区 ——
       new Item({
@@ -59,13 +58,6 @@ export class SyncProvider implements vscode.TreeDataProvider<Item> {
         description: s.panelRemote,
         tooltip: `${s.panelRemote}: ${remoteText}`,
       }),
-      new Item({
-        label: this.status.changes,
-        icon: this.status.changes === s.changesNone ? 'check' : 'edit',
-        description: s.panelChanges,
-        tooltip: `${s.panelChanges}: ${this.status.changes}`,
-      }),
-
       // —— 操作区 ——
       new Item({
         label: s.btnPull,

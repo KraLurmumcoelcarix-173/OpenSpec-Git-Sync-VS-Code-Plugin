@@ -49,6 +49,10 @@ const STRINGS = {
     setupDone: '✓ Git 身份与凭证已配置。首次拉取输入凭证后将自动保存（明文存储于本机）。',
     setupFailed: (err: string) => `配置失败：${err}`,
     refreshFailed: (err: string) => `刷新失败：${err}`,
+    statusHasUpdate: '有更新可拉取',
+    summaryHasUpdate: 'main 有更新，点击 Pull 拉取',
+    notOnSyncBranch: (current: string, branch: string) =>
+      `当前在「${current}」分支，拉取只能在「${branch}」分支进行。请先切换到 ${branch}。`,
   },
   'en': {
     panelBranch: 'Branch',
@@ -90,6 +94,10 @@ const STRINGS = {
     setupDone: '✓ Git identity & credential configured. Your credential will be saved (in plaintext on this machine) after the first pull.',
     setupFailed: (err: string) => `Configuration failed: ${err}`,
     refreshFailed: (err: string) => `Refresh failed: ${err}`,
+    statusHasUpdate: 'Update available',
+    summaryHasUpdate: 'main has updates, click Pull to fetch',
+    notOnSyncBranch: (current: string, branch: string) =>
+      `You are on "${current}". Pull is only allowed on "${branch}". Please switch to ${branch} first.`,
   },
 } as const;
 

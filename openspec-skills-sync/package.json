@@ -31,6 +31,11 @@
           "enum": ["zh-CN", "en"],
           "default": "zh-CN",
           "description": "界面语言 / UI language"
+        },
+        "opensync.syncBranch": {
+          "type": "string",
+          "default": "main",
+          "description": "同步来源分支 / Branch to sync skills from"
         }
       }
     }
