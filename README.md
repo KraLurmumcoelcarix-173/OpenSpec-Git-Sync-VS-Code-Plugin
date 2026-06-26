@@ -1,20 +1,28 @@
 # OpenSpec Skills Sync
 
+<p align="right"><a href="#中文">中文</a> | <a href="#english">English</a></p>
+
 ![Dashboard](./dashboard.png)
 
-> 一个面向非开发者的 VS Code 插件，把"拉取最新 OpenSpec skills 文档"这件事简化成点一个按钮——无需任何 Git 命令知识。
+---
 
-## 一、概述
+<a id="中文"></a>
 
-在 OpenSpec 研发工作流中，团队默认使用 Lingma（通义灵码）配置 OpenSpec，规范 skills 文档存放于 `.lingma/skills/`。产品、测试、技术负责人等非开发人员经常需要查阅最新的 skills 文档，但手动 `git pull`、配置凭证、处理冲突的门槛过高。
+## 中文
 
-**OpenSpec Skills Sync** 在 VS Code 侧边栏提供一个图形化面板，让这些角色一键拉取最新文档。其核心设计原则是：
+> 一个面向非开发者的 VS Code 插件，把"拉取最新 OpenSpec skills 文档"简化成点一个按钮——无需任何 Git 命令知识。
 
-- **只读取，不写回**：MVP 阶段只做拉取，不让非开发者触碰提交/推送等复杂写操作。
-- **冲突即备份，不让用户纠结**：拉取前自动备份本地改动，再强制对齐远程，用户永远拿到干净的最新版，本地改动也不会丢失。
-- **省去命令行**：一键配置 Git 身份与凭证存储。
+### 一、概述
 
-## 二、适用人员
+团队默认使用 Lingma（通义灵码）配置 OpenSpec，规范 skills 文档存放于 `.lingma/skills/`。产品、测试、技术负责人等非开发人员需要查阅最新的 skills 文档，但手动 `git pull`、配置凭证、处理冲突门槛过高。本插件在 VS Code 侧边栏提供图形化面板，让这些角色一键拉取最新文档。
+
+设计原则：
+
+- **只读取，不写回**：MVP 只做拉取，不让非开发者触碰复杂写操作。
+- **冲突即备份**：拉取前自动备份本地改动，再强制对齐远程，用户永远拿到干净的最新版，本地改动也不丢。
+- **省去命令行**：一键配置 Git 身份与凭证。
+
+### 二、适用人员
 
 | 角色 | 典型用途 |
 |------|----------|
@@ -23,99 +31,136 @@
 | 技术负责人 | 同步规范、对照实现进行审查 |
 | 任何不熟悉 Git 的协作者 | 安全、零门槛地获取最新 skills |
 
-> 开发人员同样可用，但其价值主要面向"会用 VS Code 但不熟悉 Git"的协作者。
+### 三、典型团队流程
 
-## 三、文件结构
+本插件配合标准的「main + feature 分支 + PR」协作模型：
 
-```
-openspec-skills-sync/
-├── src/
-│   ├── extension.ts        # 主入口：注册命令、组装服务、UI 提示
-│   ├── syncProvider.ts     # 侧边栏 TreeView：状态面板 + 操作按钮
-│   ├── gitHandler.ts       # Git 操作封装（分支/状态/拉取/配置等，可注入执行器）
-│   ├── gitRunner.ts        # 真实 Git 执行器（基于 execFile）
-│   ├── syncService.ts      # 拉取流程编排（检查远程→fetch→备份→reset）
-│   ├── backup.ts           # 备份纯逻辑（日期/序号命名、文件复制，fs 可注入）
-│   ├── backupFn.ts         # 备份组装（拼出 syncService 所需的备份函数）
-│   ├── fileOps.ts          # 真实文件操作器（基于 fs/promises）
-│   ├── workspace.ts        # 仓库根解析、已有备份枚举
-│   ├── i18n.ts             # 中英文文案与语言切换
-│   └── *.test.ts           # 各模块的单元测试
-├── media/
-│   └── icon.svg            # 活动栏图标
-├── dashboard.png           # 面板截图（README 封面）
-├── package.json
-└── README.md
-```
+- **main 是唯一的同步来源**。所有人按需通过插件 **Pull**，把 `origin/main` 的最新 skills 同步到本地。Pull 只能在 main 分支进行（插件会拦截非 main 分支的拉取，避免误操作毁掉分支工作）。
+- **修改 skills 走 feature 分支 + PR**。需要改 skills 时，创建一个 feature 分支（如 `feat/update-review-spec`），在分支上修改，推送后在 GitHub/GitLab 上发起 Pull Request。
+- **合并后回到 main 拉取**。PR 合并进 main 后，协作者切回 main、点 Pull，即可获得最新 skills。
 
-## 四、已实现功能
 
-- **一键 Pull**：拉取 `.lingma/skills/` 的最新内容。本地若有未提交改动，先自动备份再强制对齐远程。
-- **自动备份**：备份目录命名为 `yyyy-MM-dd-id`（同一天多次备份序号递增，互不覆盖），仅备份有改动的文件。
-- **状态面板**：显示当前分支、与远程的同步状态（最新/落后/领先）、本地改动数量，状态图标随情况变色。
-- **一键 Refresh**：刷新状态并弹出带摘要的反馈（如"已是最新"或"远程有 N 个更新"）。
-- **配置 Git 身份与凭证**：一键设置 `user.name`、`user.email`，并启用凭证存储；已配置时显示当前身份、不重复打扰。
-- **未保存拦截**：Pull 前检测编辑器中未保存的文件，提示先保存（或一键保存并继续），避免覆盖造成混乱。
-- **网络失败保护**：拉取的网络/认证失败发生在备份之前，失败时不会留下无用的备份目录。
-- **启动自动刷新**：插件激活时自动刷新一次状态。
+### 四、已实现功能
+
+- **一键 Pull**：从 `origin/main` 同步最新 skills（`fetch` + `reset --hard origin/main`）。拉取后工作区干净、内容处于已提交状态。
+- **自动备份**：本地有改动时，拉取前仅备份有改动的文件，命名为 `yyyy-MM-dd-id`（同一天多次备份序号递增，互不覆盖），存于 `.lingma/.backup/`。
+- **同步状态判断**：通过对比工作区与 `origin/main` 的差异（`git diff`）判断"已是最新"或"有更新可拉取"，状态图标随情况变化。
+- **分支保护**：非 main 分支点 Pull 时拦截并提示，避免 `reset --hard` 毁掉 feature 分支工作。
+- **网络感知**：拉取/刷新时若无法连接远程，明确标注"无法连接远程，状态可能过时"，不静默失败。
+- **未保存拦截**：Pull 前检测编辑器未保存文件，提示先保存或一键保存并继续。
+- **进度与防重复点击**：Pull/Refresh 显示进度提示，操作进行中忽略重复点击。
+- **自动刷新**：插件启动时、面板每次变为可见时、以及每次 Pull 完成后，自动刷新状态。
+- **一键配置 Git 身份与凭证**：一键设置 `user.name`、`user.email` 并启用凭证存储；已配置时显示当前身份、不重复打扰。
 - **中英文切换**：通过设置项 `opensync.language`（`zh-CN` / `en`）切换界面语言。
 
-## 五、核心用法
+### 五、核心用法
 
-### 首次配置
+**首次配置**：点击活动栏插件图标打开面板 → 点「配置 Git 身份与凭证」→ 依次输入用户名、邮箱 → 首次拉取输入一次凭证后自动保存。
 
-1. 安装插件后，点击活动栏中的 OpenSpec Skills Sync 图标，打开侧边面板。
-2. 点击 **配置 Git 身份与凭证**，依次输入用户名、邮箱（回车确认逐项填写）。
-3. 首次拉取时输入一次凭证，之后自动保存。
+**日常拉取**（确保在 main 分支）：打开面板 → 点 **Pull** → 本地若有改动会先自动备份并提示位置 → 拉取完成后状态自动刷新。
 
-### 日常拉取
+**查看状态**：点 **Refresh**，或直接切回插件面板即自动刷新。绿色对勾＝已是最新；下载图标＝有更新可拉取；⚠️＝无法连接远程。
 
-1. 打开侧边面板，点击 **Pull**。
-2. 若本地动过 skills 文件 → 插件自动备份后强制拉取，并提示备份位置（`.lingma/.backup/<yyyy-MM-dd-id>/`）。
-3. 若本地干净 → 直接拉取最新内容。
-4. 在编辑器中查阅最新的 `.lingma/skills/` 文档。全程无需任何 Git 命令。
+**修改 skills**：切到 feature 分支修改 → 推送 → 在平台发起 PR → 合并后切回 main 点 Pull。
 
-### 查看状态
+**切换语言**：`Ctrl+,` 打开设置，搜 `opensync`，将 **Opensync: Language** 改为 `en` 或 `zh-CN`，回面板点一次 Refresh 即可。
 
-点击 **Refresh** 即可刷新分支、远程同步状态与本地改动情况。面板上：
+### 六、未来开发功能（待定）
 
-- 绿色对勾 = 已是最新
-- 下载箭头 = 远程有更新，可拉取
-- 红色错误 = 未检测到远程
+- 分支切换 / 新建分支 / 推送 feature 分支按钮（轻量开发者支持）
+- Push 后一键跳转 PR 页面
+- 同步路径配置化（当前固定 `.lingma/skills`）
+- 改设置即时生效、备份自动清理
+- 凭证方案可选（明文 / 系统凭证管理器）
 
-### 切换语言
-
-打开 VS Code 设置（`Ctrl+,`），搜索 `opensync`，将 **Opensync: Language** 改为 `en` 或 `zh-CN`，回到面板点一次 Refresh 即可切换界面语言。
-
-## 六、未来开发功能（待定）
-
-以下为后续可能扩展的方向，尚未排期：
-
-- **提交与推送（Commit / Push）**：让非开发者把评审意见写回远程。
-- **完整 OpenSpec 同步**：从仅同步 `skills/` 扩展到 `changes/`、`specs/` 等目录。
-- **同步路径可配置**：当前固定为 `.lingma/skills`，未来开放为配置项。
-- **改设置即时生效**：监听语言配置变更，无需手动 Refresh。
-- **备份自动清理**：定期清理过期备份目录。
-- **`.gitignore` 辅助**：自动检测并加入 `.backup/` 忽略项（视团队推送策略而定）。
-- **凭证方案可选**：在明文存储与系统凭证管理器之间提供选择。
-- **国际化升级**：迁移到官方 `@vscode/l10n` API。
-
-> 关于备份目录与推送策略：备份是本地产物。若团队仅推送 `skills/` 目录，备份不会进入仓库；具体忽略策略由团队约定。
-
-## 七、开发与调试
+### 七、开发与调试
 
 ```bash
-
-cd openspec-skills-sync/
-
-# 安装依赖
-npm install
-
-# 运行测试
-npm test
-
-# 编译
-npm run compile
-
-# 调试：在 VS Code 中打开 openspec-skills-sync Folder，按 F5 或者 Ctrl + Shift + D 启动扩展开发宿主窗口
+cd .\openspec-skills-sync\
+npm install        # 安装依赖
+npm test           # 运行测试
+npm run compile    # 编译
 ```
+
+调试：用 VS Code 打开本项目（`openspec-skills-sync`）→「运行和调试」面板选 **Run Extension** → 启动扩展宿主窗口 → 在其中打开一个含 `.lingma/skills/` 的 Git 仓库测试。调试配置见 `.vscode/launch.json`。
+
+---
+
+<a id="english"></a>
+
+## English
+
+> A VS Code extension for non-developers that turns "pull the latest OpenSpec skills docs" into a single button click — no Git knowledge required.
+
+### 1. Overview
+
+The team uses Lingma to configure OpenSpec, with skills docs stored under `.lingma/skills/`. Non-developers (PMs, QA, tech leads) need the latest skills docs, but manual `git pull`, credential setup, and conflict resolution are too high a barrier. This extension provides a sidebar panel to pull the latest docs with one click.
+
+Design principles:
+
+- **Read-only**: MVP only pulls; no complex write operations for non-developers.
+- **Backup over conflicts**: local changes are backed up before a forced sync, so users always get a clean latest version without losing their work.
+- **No command line**: one-click Git identity and credential setup.
+
+### 2. Who It's For
+
+| Role | Typical use |
+|------|-------------|
+| Product Manager | Pull latest spec docs for requirement review |
+| QA | Check latest skills conventions and acceptance criteria |
+| Tech Lead | Sync specs, review against implementation |
+| Any non-Git collaborator | Get latest skills safely, zero barrier |
+
+### 3. Typical Team Workflow
+
+The extension fits the standard "main + feature branch + PR" model:
+
+- **main is the single sync source.** Everyone uses **Pull** to sync the latest skills from `origin/main`. Pull is only allowed on main (the extension blocks pulls on non-main branches to avoid wiping branch work).
+- **Edit skills via feature branch + PR.** To change skills, create a feature branch (e.g. `feat/update-review-spec`), edit there, push, and open a Pull Request on GitHub/GitLab.
+- **Protect main.** Enable branch protection on main in your repo settings to forbid direct pushes — all changes go through PR review. This server-side guard is more reliable than the extension's check.
+- **Pull from main after merge.** Once a PR is merged into main, collaborators switch back to main and click Pull to get the latest skills.
+
+
+### 4. Implemented Features
+
+- **One-click Pull**: sync latest skills from `origin/main` (`fetch` + `reset --hard origin/main`). The working tree stays clean after pulling.
+- **Auto backup**: when local changes exist, only changed files are backed up before pulling, named `yyyy-MM-dd-id` (auto-incrementing per day), stored under `.lingma/.backup/`.
+- **Sync status**: determined by diffing the working tree against `origin/main` — shows "up to date" or "update available", with status-aware icons.
+- **Branch protection**: pulling on a non-main branch is blocked with a prompt, preventing `reset --hard` from destroying feature branch work.
+- **Network awareness**: if the remote is unreachable during pull/refresh, it clearly flags "remote unreachable, status may be outdated" instead of failing silently.
+- **Unsaved-file guard**: detects unsaved editor files before Pull, prompting to save first or save-and-continue.
+- **Progress & debounce**: Pull/Refresh show progress; repeated clicks during an operation are ignored.
+- **Auto refresh**: on startup, whenever the panel becomes visible, and after each Pull.
+- **One-click Git identity & credential setup**: sets `user.name`, `user.email`, and enables credential storage; shows current identity if already configured.
+- **Language switch**: toggle UI language via `opensync.language` (`zh-CN` / `en`).
+
+### 5. Core Usage
+
+**First-time setup**: open the panel from the activity bar → click "Configure Git Identity & Credential" → enter user name and email → enter credential once on first pull, saved thereafter.
+
+**Daily pull** (on main): open the panel → click **Pull** → local changes are auto-backed-up first if any → status auto-refreshes when done.
+
+**Check status**: click **Refresh**, or just switch back to the panel for an auto-refresh. Green check = up to date; download icon = update available; ⚠️ = remote unreachable.
+
+**Edit skills**: switch to a feature branch, edit, push, open a PR on your platform, and after merge switch back to main and Pull.
+
+**Switch language**: `Ctrl+,` → search `opensync` → set **Opensync: Language** to `en` or `zh-CN` → click Refresh once.
+
+### 6. Future Features (TBD)
+
+- Branch switch / create / push feature branch buttons (lightweight developer support)
+- One-click jump to PR page after push
+- Configurable sync path (currently fixed `.lingma/skills`)
+- Instant-apply settings, auto backup cleanup
+- Selectable credential strategy (plaintext / system credential manager)
+
+### 7. Development
+
+```bash
+cd .\openspec-skills-sync\
+npm install        # install dependencies
+npm test           # run tests
+npm run compile    # compile
+```
+
+Debug: open this project (`openspec-skills-sync`) in VS Code → Run and Debug panel → select **Run Extension** → in the host window, open a Git repo containing `.lingma/skills/`. See `.vscode/launch.json`.
