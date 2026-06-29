@@ -58,6 +58,8 @@ const STRINGS = {
     progressRefreshing: '正在刷新状态…',
     statusOffline: '⚠️ 无法连接远程',
     summaryOffline: '无法连接远程仓库，显示的可能不是最新状态',
+    backupTooMany: (count: number, dir: string) =>
+      `已累积 ${count} 个备份（位于 ${dir}），建议清理旧备份以释放空间。`,
   },
   'en': {
     panelBranch: 'Branch',
@@ -108,6 +110,8 @@ const STRINGS = {
     progressRefreshing: 'Refreshing status…',
     statusOffline: '⚠️ Remote unreachable',
     summaryOffline: 'Cannot reach remote; status shown may be outdated',
+    backupTooMany: (count: number, dir: string) =>
+      `${count} backups accumulated (in ${dir}). Consider cleaning up old backups to free space.`,
   },
 } as const;
 

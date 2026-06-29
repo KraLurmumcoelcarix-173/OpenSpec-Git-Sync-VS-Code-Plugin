@@ -5,10 +5,11 @@ import { realGitRunner } from './gitRunner';
 import { realFileOps } from './fileOps';
 import { SyncService } from './syncService';
 import { makeBackupFn } from './backupFn';
-import { resolveRepoRoot } from './workspace';
+import { resolveRepoRoot, listExistingBackups } from './workspace';
 import { strings } from './i18n';
 
 const SYNC_PATH = '.lingma/skills';
+const BACKUP_WARN_THRESHOLD = 20;
 
 function syncBranch(): string {
   return vscode.workspace.getConfiguration('opensync').get<string>('syncBranch', 'main');
@@ -118,10 +119,22 @@ export function activate(context: vscode.ExtensionContext) {
         const result = await svc.pull();
         switch (result.status) {
           case 'ok':
-            vscode.window.showInformationMessage(
-              result.backupName ? s.pullOkWithBackup(result.backupName) : s.pullOkNoBackup
-            );
-            break;
+          vscode.window.showInformationMessage(
+            result.backupName ? s.pullOkWithBackup(result.backupName) : s.pullOkNoBackup
+          );
+          // 备份过多提示：超过阈值时提醒用户清理
+          if (result.backupName) {
+            const root1 = resolveRepoRoot();
+            if (root1) {
+              const backups = await listExistingBackups(root1);
+              if (backups.length > BACKUP_WARN_THRESHOLD) {
+                vscode.window.showWarningMessage(
+                  s.backupTooMany(backups.length, '.lingma/.backup')
+                );
+              }
+            }
+          }
+          break;
           case 'no-remote':
             vscode.window.showWarningMessage(s.pullNoRemote);
             break;
