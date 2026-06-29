@@ -1,7 +1,5 @@
 ## 中文
 
-> 一个面向非开发者的 VS Code 插件，把"拉取最新 OpenSpec skills 文档"简化成点一个按钮——无需任何 Git 命令知识。
-
 ### 一、概述
 
 团队默认使用 Lingma（通义灵码）配置 OpenSpec，规范 skills 文档存放于 `.lingma/skills/`。产品、测试、技术负责人等非开发人员需要查阅最新的 skills 文档，但手动 `git pull`、配置凭证、处理冲突门槛过高。本插件在 VS Code 侧边栏提供图形化面板，让这些角色一键拉取最新文档。
@@ -92,5 +90,3 @@ vsce package                  # 生成 openspec-skills-sync-<version>.vsix
 在 VS Code 扩展面板右上角 `...` 菜单 → **Install from VSIX...** → 选择 `.vsix` 文件即可。
 
 更新版本：修改 `package.json` 的 `version`，重新 `vsce package` 生成新包分发即可。
-
----

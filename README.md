@@ -6,6 +6,8 @@
 
 > A VS Code extension for non-developers that turns "pull the latest OpenSpec skills docs" into a single button click — no Git knowledge required.
 
+> 公开源码 (Public Source): https://github.com/KraLurmumcoelcarix-173/OpenSpec-Git-Sync-VS-Code-Plugin 
+
 ## 文档 / Documentation
 
 - 📘 [中文文档](./README.zh-CN.md)
