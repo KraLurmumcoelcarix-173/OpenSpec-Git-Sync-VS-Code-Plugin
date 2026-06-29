@@ -27,6 +27,27 @@ export function activate(context: vscode.ExtensionContext) {
     }
   });
 
+  // 监听 .git 目录变化（commit / push / 切分支 / merge 等都会改动 .git 内文件），
+  // 自动刷新面板，使状态始终跟随本地 git 实际情况。
+  const root = resolveRepoRoot();
+  if (root) {
+    const gitWatcher = vscode.workspace.createFileSystemWatcher(
+      new vscode.RelativePattern(root, '.git/{HEAD,refs/**,ORIG_HEAD,MERGE_HEAD}')
+    );
+    // 防抖：git 操作常一次改多个文件，避免短时间内重复刷新
+    let debounceTimer: NodeJS.Timeout | undefined;
+    const scheduleRefresh = () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        if (!busy) doRefresh(provider);
+      }, 800);
+    };
+    gitWatcher.onDidChange(scheduleRefresh);
+    gitWatcher.onDidCreate(scheduleRefresh);
+    gitWatcher.onDidDelete(scheduleRefresh);
+    context.subscriptions.push(gitWatcher);
+  }
+
   // 执行锁：命令进行中时忽略重复点击
   let busy = false;
   async function runExclusive(title: string, task: () => Promise<void>) {
